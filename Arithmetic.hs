@@ -27,4 +27,4 @@ mulop = first
   (do symb "/"
       return (div))
 
-main = putStrLn . show $ apply expr " 11 - 20 * (3 - 2) + 4 "
+main = interact $ unlines . map (\cs -> extractFirst (apply expr cs)) . lines

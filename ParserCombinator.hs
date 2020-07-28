@@ -119,3 +119,9 @@ symb cs = token (string cs)
 -- apply a parser and discard leading spaces
 apply :: Parser a -> String -> [(a, String)]
 apply p = parse (space *> p)
+
+extractFirst :: Show a => [(a, String)] -> String
+extractFirst [] = "Error"
+extractFirst ((a, rest):_) = if length rest > 0
+  then "Error: unexpected token starting at '" ++ rest ++ "'"
+  else show a
