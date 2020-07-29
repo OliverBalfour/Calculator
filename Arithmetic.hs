@@ -6,7 +6,7 @@ import Control.Monad (unless)
 import Data.List (filter)
 
 expr :: Parser Double
-expr = factor `chainl1` powop `chainl1` mulop `chainl1` addop
+expr = factor `chainr1` powop `chainl1` mulop `chainl1` addop
 factor = number <|> constant <|> brackets
 constant = (symb "pi" *> return pi) <|> (symb "e" *> return (exp 1))
 brackets = symb "(" *> expr <* symb ")"

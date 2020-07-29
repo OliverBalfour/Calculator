@@ -75,7 +75,7 @@ many1 p = do
 
 -- parse a list [a] delimited by separators b
 sepby :: Parser a -> Parser b -> Parser [a]
-p `sepby` sep = (p `sepby1` sep) <|> (return [])
+p `sepby` sep = (p `sepby1` sep) <|> empty
 
 -- sepby variant enforcing length >= 1
 sepby1 :: Parser a -> Parser b -> Parser [a]
@@ -98,6 +98,19 @@ p `chainl1` op = do
                  b <- p
                  rest (f a b))
              <|> return a
+
+chainr :: Parser a -> Parser (a -> a -> a) -> a -> Parser a
+chainr p op fallback = (p `chainr1` op) <|> (return fallback)
+
+chainr1 :: Parser a -> Parser (a -> a -> a) -> Parser a
+p `chainr1` op = do
+  a <- p
+  rest a
+  where rest a = (do f <- op
+                     b <- p
+                     b' <- rest b
+                     return (f a b'))
+                 <|> return a
 
 space :: Parser String
 space = many (satisfy isSpace)
