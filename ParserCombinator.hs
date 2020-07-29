@@ -120,7 +120,7 @@ floatingPointExponent = (do
   return (x * 10**e)) <|> floatingPoint
 
 number :: Parser Double
-number = floatingPointWithExponent <* space
+number = floatingPointExponent <* space
 
 -- apply a parser and discard leading spaces
 apply :: Parser a -> String -> [(a, String)]

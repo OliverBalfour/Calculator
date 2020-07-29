@@ -87,7 +87,7 @@ prettyExpr cs = let x = apply expr cs in
       else show $ fst (x !! 0)
 
 test :: IO [()]
-test = sequence $ map printFailed (filter (not . testPasses) tests)
+test = mapM printFailed (filter (not . testPasses) tests)
   where
     printFailed = \(cs, out) -> putStrLn $ "error: " ++ cs ++ " == " ++ show out
     testPasses (cs, out) = let res = apply expr cs in
