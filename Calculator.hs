@@ -9,9 +9,9 @@ expr :: Parser Double
 -- todo: data structure storing operations along with their fixity and precedence
 -- so we can dynamically add infixr7, prefix9 etc functions/operators
 -- note: same precedence needs foldr1 (<|>), different needs foldr1 (chain(l or r)1)
-expr = subexpr `chainr1` powop `chainl1` mulop `chainl1` implicitmulop `chainl1` addop
+expr = subexpr `chainr1` powop `chainl1` misc_functions `chainl1` mulop `chainl1` implicitmulop `chainl1` addop
 
-subexpr = number <|> constant <|> unary_function <|> binary_function <|> brackets
+subexpr = factorial_function <|> number <|> constant <|> unary_function <|> binary_function <|> brackets
 
 constant = foldr1 (<|>) $ map
   (\(cs, val) -> symb cs *> return val)
@@ -28,7 +28,14 @@ unary_function = foldr1 (<|>) $ map
     a <- subexpr
     return (f a))
   [("sin", sin), ("cos", cos), ("tan", tan), ("sqrt", sqrt), ("exp", exp),
-  ("ln", log), ("log", (/ log 10) . log)]
+  ("ln", log), ("log", logBase 10), ("sinh", sinh), ("cosh", cosh), ("tanh", tanh),
+  -- todo: programmatically generate these
+  ("asin", asin), ("arcsin", asin), ("sin^-1", asin), ("sin^{-1}", asin),
+  ("acos", acos), ("arccos", acos), ("cos^-1", acos), ("cos^{-1}", acos),
+  ("atan", atan), ("arctan", atan), ("tan^-1", atan), ("tan^{-1}", atan),
+  ("asinh", asinh), ("arcsinh", asinh), ("sinh^-1", asinh), ("sinh^{-1}", asinh),
+  ("acosh", acosh), ("arccosh", acosh), ("cosh^-1", acosh), ("cosh^{-1}", acosh),
+  ("atanh", atanh), ("arctanh", atanh), ("tanh^-1", atanh), ("tanh^{-1}", atanh)]
 
 binary_function = foldr1 (<|>) $ map
   (\(cs, f) -> do
@@ -36,7 +43,26 @@ binary_function = foldr1 (<|>) $ map
     a <- subexpr
     b <- subexpr
     return (f a b))
-  [("frac", (/)), ("max", max), ("min", min), ("log_", (\a b -> log b / log a))]
+  [("frac", (/)), ("max", max), ("min", min), ("log_", logBase)]
+
+-- permutations, combinations, factorial
+factorial :: Int -> Int
+factorial 0 = 1
+factorial n = n * factorial (n - 1)
+dbl_factorial :: Double -> Double
+-- todo: this is dodgy (either use gamma function or take a different approach to ints/rationals/floats)
+dbl_factorial n = int2Double $ factorial (max 0 (round n))
+num_permutations :: Double -> Double -> Double
+num_permutations n r = dbl_factorial n / dbl_factorial (n - r)
+num_combinations :: Double -> Double -> Double
+num_combinations n r = num_permutations n r / dbl_factorial r
+misc_functions = ((symb "C" <|> symb "choose") *> return num_combinations)
+              <|> (symb "P"                    *> return num_permutations)
+factorial_function = do
+  -- subexpr minus this function
+  a <- number <|> constant <|> unary_function <|> binary_function <|> brackets
+  symb "!"
+  return (dbl_factorial a)
 
 powop :: Parser (Double -> Double -> Double)
 powop = (symb "**" <|> symb "^") *> return (**)
@@ -104,7 +130,11 @@ test = sequence $ map printFailed (filter (not . testPasses) tests)
       -- floating point numbers and scientific notation
       ("10e2", 1000.0),
       ("9e-2", 0.09),
-      ("3.1415e4", 31415.0)
+      ("3.1415e4", 31415.0),
+      -- permutations and combinations
+      ("5!", 120.0),
+      ("10 choose 4", 210.0),
+      ("10C6", 210.0)
       ]
 
 main :: IO ()
