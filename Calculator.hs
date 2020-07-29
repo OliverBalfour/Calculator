@@ -112,7 +112,7 @@ test = sequence $ map printFailed (filter (not . testPasses) tests)
       ("3  - 2 * 3", -3.0),
       ("(2**3)^4", 4096.0),
       ("3^4^(1/2.00)",9.0),
-      ("2/3*3", 3.0),
+      ("2/3*3", 2.0),
       -- latex
       ("5\\times\\left(4-2\\right)", 10.0),
       ("3\\times \\left(\\frac{5}{9}\\right)^2*\\left(\\frac{4}{9}\\right)^1", 100.0/243.0),
