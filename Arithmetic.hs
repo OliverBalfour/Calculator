@@ -24,18 +24,19 @@ brackets = foldr1 (<|>) $ map
 
 unary_function = foldr1 (<|>) $ map
   (\(cs, f) -> do
-    symb cs
+    symb cs <|> symb ("\\" ++ cs) -- add latex support
     a <- subexpr
     return (f a))
-  [("sin", sin), ("cos", cos), ("tan", tan), ("sqrt", sqrt)]
+  [("sin", sin), ("cos", cos), ("tan", tan), ("sqrt", sqrt), ("exp", exp),
+  ("ln", log), ("log", (/ log 10) . log)]
 
 binary_function = foldr1 (<|>) $ map
   (\(cs, f) -> do
-    symb cs
+    symb cs <|> symb ("\\" ++ cs) -- add latex support
     a <- subexpr
     b <- subexpr
     return (f a b))
-  [("\\frac", (/)), ("max", max), ("min", min)]
+  [("frac", (/)), ("max", max), ("min", min), ("log_", (\a b -> log b / log a))]
 
 powop :: Parser (Double -> Double -> Double)
 powop = (symb "**" <|> symb "^") *> return (**)
@@ -97,6 +98,9 @@ test = sequence $ map printFailed (filter (not . testPasses) tests)
       ("5max 7 4", 35.0),
       ("max max max 1 20 3 4", 20.0),
       ("\\frac{1}{2}", 0.5),
+      ("ln e", 1.0),
+      ("log 100", 2.0),
+      ("\\log_2 8", 3.0),
       -- floating point numbers and scientific notation
       ("10e2", 1000.0),
       ("9e-2", 0.09),

@@ -140,6 +140,8 @@ floatingPoint = do
   let second' = (int2Double second) / ((10**) . int2Double . length . show $ second)
   return (first' + second')
 
+-- caveat: the exponent is an int, so if there is a decimal point after,
+-- it is implicitly multiplied (eg 5e-2.35 = 5*10**(-2) * 0.35)
 fpWithExponent :: Parser Double
 fpWithExponent = do
   x <- floatingPoint <|> (fmap int2Double integer)
