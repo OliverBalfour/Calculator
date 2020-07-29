@@ -9,12 +9,10 @@ expr :: Parser Double
 -- todo: data structure storing operations along with their fixity and precedence
 -- so we can dynamically add infixr7, prefix9 etc functions/operators
 -- note: same precedence needs foldr1 (<|>), different needs foldr1 (chain(l or r)1)
--- todo: functions
--- todo: latex expressions (eg \div is a prefix function)
 expr = subexpr `chainr1` powop `chainl1` mulop `chainl1` implicitmulop `chainl1` addop
 
 -- todo: unary - operator, 10e-2 scientific notation
-subexpr = number <|> constant <|> function <|> brackets
+subexpr = number <|> constant <|> unary_function <|> binary_function <|> brackets
 
 constant = foldr1 (<|>) $ map
   (\(cs, val) -> symb cs *> return val)
@@ -25,13 +23,20 @@ brackets = foldr1 (<|>) $ map
   [("(",")"), ("[","]"), ("{","}"),
   ("\\left(","\\right)"), ("\\left[","\\right]"), ("\\left{","\\right}")]
 
-function = foldr1 (<|>) $ map
-  (\(cs, f, args) -> do
+unary_function = foldr1 (<|>) $ map
+  (\(cs, f) -> do
+    symb cs
+    a <- subexpr
+    return (f a))
+  [("sin", sin), ("cos", cos), ("tan", tan), ("sqrt", sqrt)]
+
+binary_function = foldr1 (<|>) $ map
+  (\(cs, f) -> do
     symb cs
     a <- subexpr
     b <- subexpr
     return (f a b))
-  [("\\frac", (/), 2)]--, ("sin", sin, 1)]
+  [("\\frac", (/)), ("max", max), ("min", min)]
 
 powop :: Parser (Double -> Double -> Double)
 powop = (symb "**" <|> symb "^") *> return (**)
@@ -85,14 +90,14 @@ test = sequence $ map printFailed (filter (not . testPasses) tests)
       ("5\\times\\left(4-2\\right)", 10.0),
       ("3\\times \\left(\\frac{5}{9}\\right)^2*\\left(\\frac{4}{9}\\right)^1", 100.0/243.0),
       -- multiplication without symbol
-      -- ("2pi(3 + 4)", 14.0 * pi),
-      -- ("5^2\\frac(1) 5", 5.0),
-      -- ("2 / 3(2 + 4)", 1.0), -- equiv. to 2 / 3 * (2 + 4)
+      ("2pi(3 + 4)", 14.0 * pi),
+      ("5^2\\frac(1) 5", 5.0),
+      ("2 / 3(2 + 4)", 4.0), -- equiv. to 2 / 3 * (2 + 4)
       -- functions
-      -- ("sin 0", 0.0),
-      -- ("5max 7 4", 35.0),
-      ("\\frac{1}{2}", 0.5)
-      ]
+      ("sin 0", 0.0),
+      ("5max 7 4", 35.0),
+      ("max max max 1 20 3 4", 20.0),
+      ("\\frac{1}{2}", 0.5)]
 
 main :: IO ()
 main = do
