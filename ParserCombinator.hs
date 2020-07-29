@@ -147,3 +147,13 @@ symb cs = token (string cs)
 -- apply a parser and discard leading spaces
 apply :: Parser a -> String -> [(a, String)]
 apply p = parse (space *> p)
+
+-- apply a parser only if a different parser would fail, without consuming the string
+-- ex: (notahead (symb "++")) *> symb "+"  matches + only if there is no ++
+notahead :: Parser a -> Parser ()
+notahead p = Parser (\cs -> do
+  let x = apply p cs
+  if (length x == 0)
+    then return ((), cs)
+    else mempty
+  )
