@@ -26,6 +26,10 @@ This is because function and operator application have different mechanisms, and
 
 Every number is converted to a double, meaning the factorial function must first round the number or use the gamma function, and the answers are not given as fractions where appropriate. Fixing this will be quite difficult as Haskell is very strict regarding numeric types. To fix this, the type of an expression must default to an integer, then degrade to rational if division is required (or the other operand to a binary function is rational, etc), then to a double if a special function or constant is required.
 
+- Scientific notation does not support floating point mantissas, and gives unexpected results when provided.
+
+The expression `5.2e2.35` should either evaluate to `5.2 * 10^2.1` or complain that floating point mantissas are unsupported, however instead it is parsed as `5.2 * 10^2 * 0.35`, an implicit multiplication by `.35`.
+
 ## Examples
 
 The calculator supports standard infix math notation used in programming, as well as LaTeX style markup in parallel. This works by defining a function `\frac` and allowing `{}` brackets to be used to denote a new expression for function application, so `frac 1 2` and `\frac{1}{2}` are parsed the same way.
@@ -42,4 +46,4 @@ The calculator supports standard infix math notation used in programming, as wel
 ```
 ## Credits
 
-This calculator is inspired by Hutton & Meijer's 1998 paper [Monadic Parsing in Haskell](https://www.cs.tufts.edu/comp/150FP/archive/graham-hutton/monadic-parsing-jfp.pdf).
+This calculator is inspired by Hutton & Meijer's 1998 paper [Monadic Parsing in Haskell](https://www.cs.tufts.edu/comp/150FP/archive/graham-hutton/monadic-parsing-jfp.pdf) and a [Youtube tutorial by Tsoding](https://www.youtube.com/watch?v=N9RUqGYuGfw) about writing JSON parsers.

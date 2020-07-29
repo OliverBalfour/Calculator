@@ -86,31 +86,18 @@ p `sepby1` sep = do
 
 -- chain left associative binary operators
 -- eg for int addition: chainl (many1 $ char isDigit) (char "+") (return 0)
+
 chainl :: Parser a -> Parser (a -> a -> a) -> a -> Parser a
-chainl p op fallback = (p `chainl1` op) <|> (return fallback)
-
-chainl1 :: Parser a -> Parser (a -> a -> a) -> Parser a
-p `chainl1` op = do
-  a <- p
-  rest a
-  where
-    rest a = (do f <- op
-                 b <- p
-                 rest (f a b))
-             <|> return a
-
 chainr :: Parser a -> Parser (a -> a -> a) -> a -> Parser a
+chainl p op fallback = (p `chainl1` op) <|> (return fallback)
 chainr p op fallback = (p `chainr1` op) <|> (return fallback)
 
+chainl1 :: Parser a -> Parser (a -> a -> a) -> Parser a
 chainr1 :: Parser a -> Parser (a -> a -> a) -> Parser a
-p `chainr1` op = do
-  a <- p
-  rest a
-  where rest a = (do f <- op
-                     b <- p
-                     b' <- rest b
-                     return (f a b'))
-                 <|> return a
+p `chainl1` op = do { a <- p; rest a }
+  where rest a = ((op <*> pure a <*> p) >>= rest)  <|> return a
+p `chainr1` op = do { a <- p; rest a }
+  where rest a =  (op <*> pure a <*> (p >>= rest)) <|> return a
 
 space :: Parser String
 space = many (satisfy isSpace)
