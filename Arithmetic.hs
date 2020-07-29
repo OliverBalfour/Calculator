@@ -11,7 +11,6 @@ expr :: Parser Double
 -- note: same precedence needs foldr1 (<|>), different needs foldr1 (chain(l or r)1)
 expr = subexpr `chainr1` powop `chainl1` mulop `chainl1` implicitmulop `chainl1` addop
 
--- todo: unary - operator, 10e-2 scientific notation
 subexpr = number <|> constant <|> unary_function <|> binary_function <|> brackets
 
 constant = foldr1 (<|>) $ map
@@ -73,9 +72,9 @@ test = sequence $ map printFailed (filter (not . testPasses) tests)
       -- basic arithmetic, spaces
       ("1+2", 3.0),
       ("1.0 + 2.1", 3.1),
-      ("   0.1   + 0.2 -  0.3", 0.0),
+      ("   0. + 0.1   + 0.2 -  .3", 0.0),
       -- unary minus
-      -- ("5 + -4 - (5 - 4)", 0.0),
+      ("5 + -4 - (5 - 4)", 0.0),
       -- brackets
       ("(3 + 4) / (5 - 4)", 7.0),
       ("[5] - {4} * [3 - 2]", 1.0),
@@ -97,7 +96,12 @@ test = sequence $ map printFailed (filter (not . testPasses) tests)
       ("sin 0", 0.0),
       ("5max 7 4", 35.0),
       ("max max max 1 20 3 4", 20.0),
-      ("\\frac{1}{2}", 0.5)]
+      ("\\frac{1}{2}", 0.5),
+      -- floating point numbers and scientific notation
+      ("10e2", 1000.0),
+      ("9e-2", 0.09),
+      ("3.1415e4", 31415.0)
+      ]
 
 main :: IO ()
 main = do

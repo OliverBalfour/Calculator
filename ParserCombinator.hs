@@ -122,23 +122,33 @@ token p = p <* space
 digit :: Parser Int
 digit = fmap (\c -> ord c - ord '0') (satisfy isDigit)
 
+positiveInteger :: Parser Int
+positiveInteger = fmap base10 (many1 digit)
+
 integer :: Parser Int
-integer = fmap base10 (many1 digit) <* space
+integer = (char '-' *> fmap negate positiveInteger) <|> positiveInteger
 
 base10 :: [Int] -> Int
 base10 ns = sum $ zipWith (\a b -> 10 ^ a * b) [0..] (reverse ns)
 
 floatingPoint :: Parser Double
 floatingPoint = do
-  first <- integer
+  first <- integer <|> return 0
   let first' = int2Double first
   point <- char '.'
-  second <- integer
+  second <- integer <|> return 0
   let second' = (int2Double second) / ((10**) . int2Double . length . show $ second)
   return (first' + second')
 
+fpWithExponent :: Parser Double
+fpWithExponent = do
+  x <- floatingPoint <|> (fmap int2Double integer)
+  char 'e'
+  e <- fmap int2Double integer
+  return (x * 10**e)
+
 number :: Parser Double
-number = floatingPoint <|> (fmap int2Double integer)
+number = (fpWithExponent <|> floatingPoint <|> fmap int2Double integer) <* space
 
 -- parse a string token
 symb :: String -> Parser String
