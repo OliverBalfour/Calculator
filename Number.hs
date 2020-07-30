@@ -125,7 +125,13 @@ instance Floating Number where
   -- pi :: Number
   pi = NumR pi
 
-  -- todo: overload ** on integer types for efficiency
+  -- Overload (**) to use (^), (^^) where possible for efficiency
+  (**) (NumQ a) (NumZ b) = NumQ $ a ^^ b
+  (**) (NumR a) (NumZ b) = NumR $ a ^^ b
+  (**) (NumZ a) (NumZ b) = if b < 0
+    then NumQ $ (a:%1) ^^ b
+    else NumZ $ a^b
+  (**) a b = exp (log a * b)
 
   -- All unary functions have the same structure
   -- We cannot extract these to functions so, eg exp = wrapFunction exp
