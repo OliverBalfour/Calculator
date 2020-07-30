@@ -4,6 +4,7 @@ import GHC.Float (int2Double)
 import Control.Applicative ((<|>))
 import Control.Monad (unless)
 import Data.List (filter)
+import Data.Function (on)
 
 expr :: Parser Double
 -- todo: data structure storing operations along with their fixity and precedence
@@ -43,7 +44,7 @@ binary_function = foldr1 (<|>) $ map
     a <- subexpr
     b <- subexpr
     return (f a b))
-  [("frac", (/)), ("max", max), ("min", min), ("log_", logBase)]
+  [("frac", (/)), ("max", max), ("min", min), ("log_", logBase), ("nCr", num_combinations), ("nPr", num_permutations)]--, ("gcd", int2Double . gcd `on` round)]
 
 -- permutations, combinations, factorial
 factorial :: Int -> Int

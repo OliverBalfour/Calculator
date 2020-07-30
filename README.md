@@ -26,9 +26,7 @@ This is because function and operator application have different mechanisms, and
 
 Every number is converted to a double, meaning the factorial function must first round the number or use the gamma function, and the answers are not given as fractions where appropriate. Fixing this will be quite difficult as Haskell is very strict regarding numeric types. To fix this, the type of an expression must default to an integer, then degrade to rational if division is required (or the other operand to a binary function is rational, etc), then to a double if a special function or constant is required.
 
-- Scientific notation does not support floating point mantissas, and gives unexpected results when provided.
-
-The expression `5.2e2.35` should either evaluate to `5.2 * 10^2.1` or complain that floating point mantissas are unsupported, however instead it is parsed as `5.2 * 10^2 * 0.35`, an implicit multiplication by `.35`.
+`0.04 == 0.4`... (problem in floatingPoint when leading digits of decimal portion is zero - it miscounts the number of digits)
 
 ## Examples
 

@@ -106,6 +106,7 @@ floatingPoint = (do
   first <- integer <|> return 0
   let first' = int2Double first
   point <- char '.'
+  -- BUG: leading zeros in the decimal places are ignored in num. decimals calculation
   second <- integer <|> return 0
   let second' = (int2Double second) / ((10**) . int2Double . length . show $ second)
   return (first' + second')) <|> (fmap int2Double integer)
