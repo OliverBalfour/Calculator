@@ -1,18 +1,11 @@
-{-# LANGUAGE RankNTypes #-}
 
 module Number where
 
 import Data.Ratio
 import GHC.Real
 import Data.Function (on)
--- import Fraction
 
 -- todo: derive Eq, Show, Ord, Bounded, etc
--- todo: derive Floating
--- todo: make NumQ -> NumZ if denominator is 1
--- todo: define operations for Rational's (newtype Fraction = Ratio Integer,
--- then make it a Floating instance)
--- update: Integral a => Ratio a  is a Num and Fractional, only need Floating
 
 -- |Number is a wrapper for Haskell number types numbers using ADTs.
 -- It supports integer, rational, and real number types.
@@ -42,98 +35,120 @@ toR (NumZ x) = NumQ $ x :% 1
 toR (NumQ x) = NumR $ fromRational x
 toR (NumR x) = NumR x
 
--- func :: Real t => (t -> t -> t) -> (Number -> Number -> Number)
--- func f (NumR a) (NumR b) = NumR (realToDouble $ f a b)
--- -- func f a b = func f (toR a) (toR b)
--- x = func (*) (NumR 0) (NumR 0)
+-- |Convert a rational to a integer representation if denominator is zero
+maybeInt :: Rational -> Number
+maybeInt (x :% 1) = NumZ x
+maybeInt q = NumQ q
 
--- -- works
--- data X = A Double | B Int
--- func :: X -> X
--- func (A d) = A d
--- func (B i) = A $ realToDouble i
+instance Num Number where
+  -- abs :: Number -> Number
+  abs (NumQ (x :% y)) = NumQ $ (x * signum x) :% y
+  abs (NumZ  x)       = NumZ $ abs x
+  abs (NumR  x)       = NumR $ abs x
 
--- doesn't
--- lift a function from R->R to X->X
-data A = X Double | Y Int
-fmap :: Real t => (t -> t) -> A -> A
-fmap f (X d) = X $ f d
-fmap f (Y i) = X $ f (realToFrac i)
+  -- fromInteger :: Integer -> Number
+  fromInteger = NumZ
 
+  -- signum: sign of a number, -1 for negative, +1 for positive, +0 for 0
+  -- signum :: Number -> Number
+  signum (NumQ (x :% _)) = NumZ $ signum x -- todo
+  signum (NumZ  x)       = NumZ $ signum x
+  signum (NumR  x)       = NumZ $ round $ signum x
 
--- fma' :: X -> X)
--- fma' f (X d) = t
+  -- negate :: Number -> Number
+  negate (NumQ (x :% y)) = NumQ $ (negate x) :% y
+  negate (NumZ x) = NumZ $ signum x
+  negate (NumR x) = NumR $ signum x
 
--- data X = A Double | B Int
--- func :: X -> X
--- func (A d) = A d
--- func (B i) = A $ realToDouble i
--- foobar :: Real t => (t -> t) -> X -> X
--- foobar f x@(B i) = foobar f (func x)
--- foobar f (A d) = A $ f d
--- 
-realToDouble :: Real n => n -> Double
-realToDouble i = fromRational $ toRational i
+  -- (*) :: Number -> Number -> Number
+  (*) (NumQ a) (NumQ b) = maybeInt $ a * b
+  (*) (NumZ a) (NumZ b) = NumZ $ a * b
+  (*) (NumR a) (NumR b) = NumR $ a * b
+  (*) z@(NumZ _) q@(NumQ _) = (toQ z) * q
+  (*) q@(NumQ _) r@(NumR _) = (toR q) * r
+  (*) z@(NumZ _) r@(NumR _) = (toR z) * r
+  (*) a b = (*) b a
 
--- toDouble :: (forall n . Num n => n) -> Double; toDouble i = i
--- x = toDouble (5::Int) -- error, must be a polymorphic Num type
+  -- (+) :: Number -> Number -> Number
+  (+) (NumQ a) (NumQ b) = maybeInt $ a + b
+  (+) (NumZ a) (NumZ b) = NumZ $ a + b
+  (+) (NumR a) (NumR b) = NumR $ a + b
+  (+) z@(NumZ _) q@(NumQ _) = (toQ z) + q
+  (+) q@(NumQ _) r@(NumR _) = (toR q) + r
+  (+) z@(NumZ _) r@(NumR _) = (toR z) + r
+  (+) a b = (+) b a
 
--- |Evaluate a *commutative* binary function of Number's with different
--- underlying types. Assumes 1) commutativity 2) f supports Integer, Rational,
--- Double. Makes sure the function recieves the same type
--- issue: Rational does not have most functions defined...
--- binaryFunction :: Num a => (a -> a -> a) -> (Number -> Number -> Number)
--- binaryFunction = (<&>) -- use shorter name because I'm lazy
--- (<&>) f (NumQ a) (NumQ b) = NumQ $ f a b
--- (<&>) f (NumZ a) (NumZ b) = NumZ $ f a b
--- (<&>) f (NumR a) (NumR b) = NumR $ f a b
--- -- for different type operands, we convert to same type Z->Q->R
--- (<&>) f (NumZ z) (NumQ q) = NumQ $ f (toQ z) q
--- (<&>) f (NumQ q) (NumR r) = NumR $ f (toR q) r
--- (<&>) f (NumZ z) (NumR r) = NumR $ f (toR z) r
--- -- exploit commutativity to reduce clutter
--- (<&>) f a b = (*) b a
+instance Fractional Number where
+  -- fromRational :: Ratio Integer -> Number
+  fromRational = NumQ
 
+  -- recip :: Number -> Number
+  recip (NumQ (x :% y)) = maybeInt $ y % x
+  recip (NumZ  x)       = NumQ $ 1 :% x
+  recip (NumR  x)       = NumR $ 1.0 / x
 
--- instance Num Number where
---   -- abs :: Number -> Number
---   abs (NumQ (x :% y)) = NumQ $ (x * signum x) :% y -- todo
---   abs (NumZ  x)       = NumZ $ abs x
---   abs (NumR  x)       = NumR $ abs x
--- 
---   -- fromInteger :: Integer -> Number
---   fromInteger = NumZ
--- 
---   -- signum: sign of a number, -1 for negative, +1 for positive, +0 for 0
---   -- signum :: Number -> Number
---   signum (NumQ (x :% _)) = NumZ $ signum x -- todo
---   signum (NumZ  x)       = NumZ $ signum x
---   signum (NumR  x)       = NumZ $ round $ signum x
--- 
---   -- negate :: Number -> Number
---   negate (NumQ (x :% y)) = NumQ $ (negate x) :% y -- todo
---   negate (NumZ x) = NumZ $ signum x
---   negate (NumR x) = NumR $ signum x
+  -- (/) :: Number -> Number -> Number
+  -- we only overload division for a couple of special cases
+  (/) (NumR a) (NumR b) = if a == b then NumZ 1 else NumR $ a / b
+  (/) a b = a * recip b
 
-  -- -- (*) :: Number -> Number -> Number
-  -- (*) = binaryFunction (*)
-  -- 
-  -- -- (+) :: Number -> Number -> Number
-  -- (+) = binaryFunction (+)
+instance Floating Number where
+  -- pi :: Number
+  pi = NumR pi
 
--- instance Fractional Number where
---   -- fromRational :: Ratio Integer -> Number
---   fromRational = NumQ
--- 
---   -- recip :: Number -> Number
---   recip (NumQ (x :% y)) = NumQ $ y % x
---   recip (NumZ  x)       = NumQ $ 1 :% x
---   recip (NumR  x)       = NumR $ 1.0 / x
--- 
---   -- (/) :: Number -> Number -> Number
---   -- we only overload division for a couple of special cases
---   (/) (NumR a) (NumR b) = if a == b then NumZ 1 else NumR $ a / b
---   (/) a b = a * recip b
+  -- All unary functions have the same structure
+  -- We cannot extract these to functions so, eg exp = wrapFunction exp
+  -- because the type system complains about rigid type variables if we
+  -- create a function :: Floating t => (t -> t) -> Number -> Number
+  -- that internally applies said function
 
--- instance Floating Number where
---   pi, exp, log, sin, cos, asin, acos, atan, sinh, cosh, asinh, acosh, atanh
+  -- unary_function :: Number -> Number
+  -- unary_function (NumR r) = NumR $ unary_function r
+  -- unary_function x@(NumZ _) = unary_function (toR x)
+  -- unary_function x@(NumQ _) = unary_function (toR x)
+
+  -- The following snippet generates the below code:
+  -- import qualified Data.Text as T
+  -- main = putStrLn (T.unpack generated)
+  -- generated = T.unlines $ map (\fn -> T.replace (T.pack "*") fn template) fns where
+  --   fns = (T.split (==',') (T.pack "exp,log,sin,cos,asin,acos,atan,sinh,cosh,asinh,acosh,atanh"))
+  --   template = (T.pack"* (NumR r) = NumR $ * r\n\
+  -- \* x@(NumZ _) = * (toR x)\n\
+  -- \* x@(NumQ _) = * (toR x)")
+
+  exp (NumR r) = NumR $ exp r
+  exp x@(NumZ _) = exp (toR x)
+  exp x@(NumQ _) = exp (toR x)
+  log (NumR r) = NumR $ log r
+  log x@(NumZ _) = log (toR x)
+  log x@(NumQ _) = log (toR x)
+  sin (NumR r) = NumR $ sin r
+  sin x@(NumZ _) = sin (toR x)
+  sin x@(NumQ _) = sin (toR x)
+  cos (NumR r) = NumR $ cos r
+  cos x@(NumZ _) = cos (toR x)
+  cos x@(NumQ _) = cos (toR x)
+  asin (NumR r) = NumR $ asin r
+  asin x@(NumZ _) = asin (toR x)
+  asin x@(NumQ _) = asin (toR x)
+  acos (NumR r) = NumR $ acos r
+  acos x@(NumZ _) = acos (toR x)
+  acos x@(NumQ _) = acos (toR x)
+  atan (NumR r) = NumR $ atan r
+  atan x@(NumZ _) = atan (toR x)
+  atan x@(NumQ _) = atan (toR x)
+  sinh (NumR r) = NumR $ sinh r
+  sinh x@(NumZ _) = sinh (toR x)
+  sinh x@(NumQ _) = sinh (toR x)
+  cosh (NumR r) = NumR $ cosh r
+  cosh x@(NumZ _) = cosh (toR x)
+  cosh x@(NumQ _) = cosh (toR x)
+  asinh (NumR r) = NumR $ asinh r
+  asinh x@(NumZ _) = asinh (toR x)
+  asinh x@(NumQ _) = asinh (toR x)
+  acosh (NumR r) = NumR $ acosh r
+  acosh x@(NumZ _) = acosh (toR x)
+  acosh x@(NumQ _) = acosh (toR x)
+  atanh (NumR r) = NumR $ atanh r
+  atanh x@(NumZ _) = atanh (toR x)
+  atanh x@(NumQ _) = atanh (toR x)
