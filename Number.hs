@@ -11,6 +11,7 @@ import Data.Function (on)
 -- It provides operations that keep the best precision possible, for
 -- instance only degrading integers to rationals after division or
 -- applying a binary function where the other argument is a fractional.
+-- As an added bonus you can use ** for all Numbers
 data Number = NumZ Integer | NumQ (Ratio Integer) | NumR Double
 
 -- |Convert a Number to integer representation. Uses rounding when converting
@@ -32,6 +33,10 @@ toR :: Number -> Number
 toR (NumZ x) = NumQ $ x :% 1
 toR (NumQ x) = NumR $ fromRational x
 toR (NumR x) = NumR x
+
+toDouble :: Number -> Double
+toDouble (NumR x) = x
+toDouble x = toDouble . toR $ x
 
 -- |Convert a rational to a integer representation if denominator is zero
 maybeInt :: Rational -> Number
@@ -81,8 +86,8 @@ instance Num Number where
 
   -- negate :: Number -> Number
   negate (NumQ (x :% y)) = NumQ $ (negate x) :% y
-  negate (NumZ x) = NumZ $ signum x
-  negate (NumR x) = NumR $ signum x
+  negate (NumZ x) = NumZ $ negate x
+  negate (NumR x) = NumR $ negate x
 
   -- (*) :: Number -> Number -> Number
   (*) (NumQ a) (NumQ b) = maybeInt $ a * b
@@ -119,6 +124,8 @@ instance Fractional Number where
 instance Floating Number where
   -- pi :: Number
   pi = NumR pi
+
+  -- todo: overload ** on integer types for efficiency
 
   -- All unary functions have the same structure
   -- We cannot extract these to functions so, eg exp = wrapFunction exp

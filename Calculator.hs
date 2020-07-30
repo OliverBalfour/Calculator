@@ -5,6 +5,7 @@ import Control.Applicative ((<|>))
 import Control.Monad (unless)
 import Data.List (filter)
 import Data.Function (on)
+import Number
 
 expr :: Parser Double
 -- todo: data structure storing operations along with their fixity and precedence

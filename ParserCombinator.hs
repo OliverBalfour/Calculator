@@ -5,6 +5,7 @@ import Control.Monad (ap)
 import Control.Applicative (Alternative, (<|>), empty)
 import Data.Char (isSpace, isDigit, ord)
 import GHC.Float (int2Double)
+import Number
 
 newtype Parser a = Parser { parse :: String -> [(a, String)] }
 
@@ -94,26 +95,24 @@ symb cs = string cs <* space
 digit :: Parser Int
 digit = fmap (\c -> ord c - ord '0') (satisfy isDigit)
 
-positiveInteger :: Parser Int
-positiveInteger = fmap base10 (many1 digit)
+positiveInteger :: Parser Number
+positiveInteger = fmap (NumZ . base10 . map toInteger) (many1 digit)
   where base10 ns = sum $ zipWith (\a b -> 10 ^ a * b) [0..] (reverse ns)
 
-integer :: Parser Int
+integer :: Parser Number
 integer = (char '-' *> fmap negate positiveInteger) <|> positiveInteger
 
-floatingPoint :: Parser Double
+floatingPoint :: Parser Number
 floatingPoint = (do
   first <- integer <|> return 0
-  let first' = int2Double first
   point <- char '.'
-  -- BUG: leading zeros in the decimal places are ignored in num. decimals calculation
+  num_zeros <- fmap length (many1 (char '0')) <|> return 0
   second <- integer <|> return 0
-  let second' = (int2Double second) / ((10**) . int2Double . length . show $ second)
-  return (first' + second')) <|> (fmap int2Double integer)
+  let num_digits = NumZ . toInteger $ num_zeros + length (show second)
+  return (first + second / 10 ** num_digits))
+  <|> integer
 
--- caveat: the exponent is an int, so if there is a decimal point after,
--- it is implicitly multiplied (eg 5e-2.35 = 5*10**(-2) * 0.35)
-floatingPointExponent :: Parser Double
+floatingPointExponent :: Parser Number
 floatingPointExponent = (do
   x <- floatingPoint
   char 'e'
@@ -121,7 +120,7 @@ floatingPointExponent = (do
   return (x * 10**e)) <|> floatingPoint
 
 number :: Parser Double
-number = floatingPointExponent <* space
+number = fmap toDouble $ floatingPointExponent <* space
 
 -- apply a parser and discard leading spaces
 apply :: Parser a -> String -> [(a, String)]
