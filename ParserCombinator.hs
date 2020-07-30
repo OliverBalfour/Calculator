@@ -119,8 +119,8 @@ floatingPointExponent = (do
   e <- floatingPoint
   return (x * 10**e)) <|> floatingPoint
 
-number :: Parser Double
-number = fmap toDouble $ floatingPointExponent <* space
+number :: Parser Number
+number = floatingPointExponent <* space
 
 -- apply a parser and discard leading spaces
 apply :: Parser a -> String -> [(a, String)]

@@ -30,7 +30,7 @@ toQ (NumQ x) = NumQ x
 
 -- |Convert a Number to real representation, may experience rounding error
 toR :: Number -> Number
-toR (NumZ x) = NumQ $ x :% 1
+toR (NumZ x) = NumR $ fromRational (x :% 1)
 toR (NumQ x) = NumR $ fromRational x
 toR (NumR x) = NumR x
 
