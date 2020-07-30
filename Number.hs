@@ -189,3 +189,19 @@ instance Floating Number where
   atanh (NumR r) = NumR $ atanh r
   atanh x@(NumZ _) = atanh (toR x)
   atanh x@(NumQ _) = atanh (toR x)
+
+-- permutations, combinations, factorial
+factorial :: Integer -> Integer
+factorial 0 = 1
+factorial n = n * factorial (n - 1)
+
+-- note: factorial rounds for non-integers instead of using the gamma function
+numFactorial :: Number -> Number
+numFactorial (NumZ n) = if n >= 0 then NumZ (factorial n) else 0
+numFactorial a = numFactorial $ toZ a
+
+perms :: Number -> Number -> Number
+perms n r = numFactorial n / numFactorial (n - r)
+
+choose :: Number -> Number -> Number
+choose n r = perms n r / numFactorial r

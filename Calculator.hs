@@ -12,11 +12,9 @@ expr :: Parser Number
 -- so we can dynamically add infixr7, prefix9 etc functions/operators
 -- note: same precedence needs foldr1 (<|>), different needs foldr1 (chain(l or r)1)
 
--- expr = subexpr `chainr1` powop `chainl1` misc_functions `chainl1` mulop `chainl1` implicitmulop `chainl1` addop
-expr = subexpr `chainr1` powop `chainl1` mulop `chainl1` implicitmulop `chainl1` addop
+expr = subexpr `chainr1` powop `chainl1` misc_functions `chainl1` mulop `chainl1` implicitmulop `chainl1` addop
 
--- subexpr = factorial_function <|> number <|> constant <|> unary_function <|> binary_function <|> brackets
-subexpr = number <|> binary_function <|> brackets
+subexpr = factorial_function <|> number <|> constant <|> unary_function <|> binary_function <|> brackets
 
 constant = foldr1 (<|>) $ map
   (\(cs, val) -> symb cs *> return val)
@@ -48,27 +46,16 @@ binary_function = foldr1 (<|>) $ map
     a <- subexpr
     b <- subexpr
     return (f a b))
-  [("frac", (/)), ("max", max), ("min", min), ("log_", logBase)]
-  --("nCr", num_combinations), ("nPr", num_permutations), ("gcd", int2Double . gcd `on` round)
+  [("frac", (/)), ("max", max), ("min", min), ("log_", logBase),
+  ("nCr", choose), ("nPr", perms)]--, ("gcd", int2Double . gcd `on` round)
 
--- permutations, combinations, factorial
-factorial :: Int -> Int
-factorial 0 = 1
-factorial n = n * factorial (n - 1)
-dbl_factorial :: Double -> Double
--- todo: this is dodgy (pattern match on Number and use gamma function for non-integers)
-dbl_factorial n = int2Double $ factorial (max 0 (round n))
-num_permutations :: Double -> Double -> Double
-num_permutations n r = dbl_factorial n / dbl_factorial (n - r)
-num_combinations :: Double -> Double -> Double
-num_combinations n r = num_permutations n r / dbl_factorial r
-misc_functions = ((symb "C" <|> symb "choose") *> return num_combinations)
-              <|> (symb "P"                    *> return num_permutations)
--- factorial_function = do
---   -- subexpr minus this function
---   a <- number <|> constant <|> unary_function <|> binary_function <|> brackets
---   symb "!"
---   return (dbl_factorial a)
+misc_functions = ((symb "C" <|> symb "choose") *> return choose)
+              <|> (symb "P"                    *> return perms)
+factorial_function = do
+  -- subexpr minus this function
+  a <- number <|> constant <|> unary_function <|> binary_function <|> brackets
+  symb "!"
+  return (numFactorial a)
 
 powop :: Parser (Number -> Number -> Number)
 powop = (symb "**" <|> symb "^") *> return (**)
