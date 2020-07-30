@@ -5,8 +5,6 @@ import Data.Ratio
 import GHC.Real
 import Data.Function (on)
 
--- todo: derive Eq, Show, Ord, Bounded, etc
-
 -- |Number is a wrapper for Haskell number types numbers using ADTs.
 -- It supports integer, rational, and real number types.
 -- It is polymorphic, as an instance of Num, Fractional and Floating.
@@ -40,6 +38,32 @@ maybeInt :: Rational -> Number
 maybeInt (x :% 1) = NumZ x
 maybeInt q = NumQ q
 
+instance Show Number where
+  show (NumZ x) = show x
+  show (NumQ (x:%y)) = show x ++ "/" ++ show y
+  show (NumR x) = show x
+
+instance Eq Number where
+  -- (==) :: Number -> Number -> Bool
+  -- note that 4:%2 /= 2:%1, 4%2 == 2%1
+  (==) (NumQ (a:%b)) (NumQ (c:%d)) = (a%b) == (c%d)
+  (==) (NumZ a) (NumZ b) = a == b
+  (==) (NumR a) (NumR b) = abs (a - b) < 1e-6
+  (==) z@(NumZ _) q@(NumQ _) = (toQ z) == q
+  (==) q@(NumQ _) r@(NumR _) = (toR q) == r
+  (==) z@(NumZ _) r@(NumR _) = (toR z) == r
+  a == b = b == a
+
+instance Ord Number where
+  -- (<=) :: Number -> Number -> Bool
+  (<=) (NumQ a) (NumQ b) = a <= b
+  (<=) (NumZ a) (NumZ b) = a <= b
+  (<=) (NumR a) (NumR b) = a <= b
+  (<=) z@(NumZ _) q@(NumQ _) = (toQ z) <= q
+  (<=) q@(NumQ _) r@(NumR _) = (toR q) <= r
+  (<=) z@(NumZ _) r@(NumR _) = (toR z) <= r
+  a <= b = not (b <= a)
+
 instance Num Number where
   -- abs :: Number -> Number
   abs (NumQ (x :% y)) = NumQ $ (x * signum x) :% y
@@ -67,7 +91,7 @@ instance Num Number where
   (*) z@(NumZ _) q@(NumQ _) = (toQ z) * q
   (*) q@(NumQ _) r@(NumR _) = (toR q) * r
   (*) z@(NumZ _) r@(NumR _) = (toR z) * r
-  (*) a b = (*) b a
+  a * b = b * a
 
   -- (+) :: Number -> Number -> Number
   (+) (NumQ a) (NumQ b) = maybeInt $ a + b
@@ -76,7 +100,7 @@ instance Num Number where
   (+) z@(NumZ _) q@(NumQ _) = (toQ z) + q
   (+) q@(NumQ _) r@(NumR _) = (toR q) + r
   (+) z@(NumZ _) r@(NumR _) = (toR z) + r
-  (+) a b = (+) b a
+  a + b = b + a
 
 instance Fractional Number where
   -- fromRational :: Ratio Integer -> Number
