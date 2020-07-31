@@ -64,6 +64,8 @@ many :: Parser a -> Parser [a]
 many p = many1 p <|> return []
 many1 :: Parser a -> Parser [a]
 many1 p = (:) <$> p <*> many p
+repeatP p 0 = return []
+repeatP p n = (:) <$> p <*> repeatP p (n - 1)
 
 -- parse a list [a] delimited by separators b
 sepby :: Parser a -> Parser b -> Parser [a]
