@@ -12,9 +12,9 @@ expr :: Parser Number
 -- so we can dynamically add infixr7, prefix9 etc functions/operators
 -- note: same precedence needs foldr1 (<|>), different needs foldr1 (chain(l or r)1)
 
-expr = subexpr `chainr1` powop `chainl1` misc_functions `chainl1` mulop `chainl1` implicitmulop `chainl1` addop
+expr = infix_functions (postfix_function <|> subexpr)
 
-subexpr = factorial_function <|> number <|> constant <|> unary_function <|> binary_function <|> brackets
+subexpr = number <|> constant <|> unary_function <|> binary_function <|> brackets
 
 constant = foldr1 (<|>) $ map
   (\(cs, val) -> symb cs *> return val)
@@ -26,13 +26,9 @@ brackets = foldr1 (<|>) $ map
   ("\\left(","\\right)"), ("\\left[","\\right]"), ("\\left{","\\right}")]
 
 unary_function = foldr1 (<|>) $ map
-  (\(cs, f) -> do
-    symb cs <|> symb ("\\" ++ cs) -- add latex support
-    a <- subexpr
-    return (f a))
+  (\(cs, f) -> latexSymb cs *> subexpr >>= return . f)
   [("sin", sin), ("cos", cos), ("tan", tan), ("sqrt", sqrt), ("exp", exp),
   ("ln", log), ("log", logBase 10), ("sinh", sinh), ("cosh", cosh), ("tanh", tanh),
-  -- todo: programmatically generate these
   ("asin", asin), ("arcsin", asin), ("sin^-1", asin), ("sin^{-1}", asin),
   ("acos", acos), ("arccos", acos), ("cos^-1", acos), ("cos^{-1}", acos),
   ("atan", atan), ("arctan", atan), ("tan^-1", atan), ("tan^{-1}", atan),
@@ -41,35 +37,26 @@ unary_function = foldr1 (<|>) $ map
   ("atanh", atanh), ("arctanh", atanh), ("tanh^-1", atanh), ("tanh^{-1}", atanh)]
 
 binary_function = foldr1 (<|>) $ map
-  (\(cs, f) -> do
-    symb cs <|> symb ("\\" ++ cs) -- add latex support
-    a <- subexpr
-    b <- subexpr
-    return (f a b))
+  (\(cs, f) -> latexSymb cs *> (f <$> subexpr <*> subexpr))
   [("frac", (/)), ("max", max), ("min", min), ("log_", logBase),
-  ("nCr", choose), ("nPr", perms)]--, ("gcd", int2Double . gcd `on` round)
+  ("nCr", choose), ("nPr", perms), ("gcd", numGCD)]
 
-misc_functions = ((symb "C" <|> symb "choose") *> return choose)
-              <|> (symb "P"                    *> return perms)
-factorial_function = do
-  -- subexpr minus this function
-  a <- number <|> constant <|> unary_function <|> binary_function <|> brackets
-  symb "!"
-  return (numFactorial a)
+-- |Infix functions are implemented by chaining expressions with parsers for
+-- infix functions which produce Parser (Number -> Number -> Number)
+-- allowing chain to use applicative syntax to evaluate in-place, so no syntax
+-- tree is needed.
+infix_functions ex = ex `chainr1` pow `chainl1` comb `chainl1` mul `chainl1` implicitmul `chainl1` add where
+  pow = (symb "**" <|> symb "^") *> return (**)
+  comb = ((symb "C" <|> symb "choose") *> return choose)
+      <|> (symb "P"                    *> return perms)
+  mul = ((symb "*" <|> symb "\\times") *> return (*)) <|> (symb "/" *> return (/))
+  add =  (symb "+"                     *> return (+)) <|> (symb "-" *> return (-))
+  -- implicitly multiply any two consecutive expressions without an operation
+  implicitmul = notahead add *> return (*)
 
-powop :: Parser (Number -> Number -> Number)
-powop = (symb "**" <|> symb "^") *> return (**)
-
-addop :: Parser (Number -> Number -> Number)
-addop = (symb "+" *> return (+)) <|> (symb "-" *> return (-))
-
-mulop :: Parser (Number -> Number -> Number)
-mulop = ((symb "*" <|> symb "\\times") *> return (*)) <|> (symb "/" *> return (/))
-
--- after mulop is applied we effectively have numbers with only +- or blanks between
--- eg 1 2 + 3 4 - 5, which we want to turn into 1*2 + 3*4 - 5
-implicitmulop :: Parser (Number -> Number -> Number)
-implicitmulop = notahead addop *> return (*)
+postfix_function = foldr1 (<|>) $ map
+  (\(cs, f) -> subexpr <* symb cs >>= return . f)
+  [("!", numFactorial)]
 
 prettyExpr :: String -> String
 prettyExpr cs = let x = apply expr cs in

@@ -92,12 +92,16 @@ space = many (satisfy isSpace)
 symb :: String -> Parser String
 symb cs = string cs <* space
 
+-- support LaTeX - if frac is a symbol, then this matches frac and \frac
+-- so if frac is a binary function \frac{1}{2} == 1/2
+latexSymb :: String -> Parser String
+latexSymb cs = symb cs <|> symb ('\\' : cs)
+
 digit :: Parser Int
 digit = fmap (\c -> ord c - ord '0') (satisfy isDigit)
 
 positiveInteger :: Parser Number
-positiveInteger = fmap (NumZ . base10 . map toInteger) (many1 digit)
-  where base10 ns = sum $ zipWith (\a b -> 10 ^ a * b) [0..] (reverse ns)
+positiveInteger = fmap (NumZ . read) (many1 (satisfy isDigit))
 
 integer :: Parser Number
 integer = (char '-' *> fmap negate positiveInteger) <|> positiveInteger

@@ -205,3 +205,9 @@ perms n r = numFactorial n / numFactorial (n - r)
 
 choose :: Number -> Number -> Number
 choose n r = perms n r / numFactorial r
+
+-- gcd rounds non-integers
+numGCD :: Number -> Number -> Number
+numGCD (NumZ a) (NumZ b) = NumZ $ gcd a b
+numGCD a b = numGCD (toZ a) (toZ b)
+
