@@ -50,6 +50,10 @@ We define a monadic `Parser` type, which contains a function taking a string and
 
 This means we can evaluate in-place instead of constructing an abstract syntax tree, as the grammar used is context free. The expression parser then uses a sub-expression parser which handles numbers, constants, function application and bracketed expressions (recursively), and chains the sub-expressions by infix operators with a parser combinator `chainl1` which applies the functions in-place.
 
+## Installation
+
+Install GHC, clone this repository, then run `ghc Calculator.hs` in the main folder. I have a keybinding set where Meta+C opens the calculator in a terminal: `terminator --geometry=400x300-0+0 -e "bash -c '~/Programming/Haskell/ParserCombinator/Calculator'"`.
+
 ## Credits
 
 This calculator is inspired by Hutton & Meijer's 1998 paper [Monadic Parsing in Haskell](https://www.cs.tufts.edu/comp/150FP/archive/graham-hutton/monadic-parsing-jfp.pdf) and a [Youtube tutorial by Tsoding](https://www.youtube.com/watch?v=N9RUqGYuGfw) about writing JSON parsers.
