@@ -39,18 +39,12 @@ instance Monoid (Parser a) where
 instance Alternative Parser where
   empty = mempty
   p <|> q = Parser (\cs ->
-    let p' = parse p cs in
-    case p' of
-      [] -> parse q cs
-      _  -> p')
+    let (p', q') = (parse p cs, parse q cs) in
+    if length p' > 0 then p' else q')
 
 -- match a single character that satisfies a predicate function
 satisfy :: (Char -> Bool) -> Parser Char
-satisfy predicate = do
-  c <- item
-  if predicate c
-    then return c
-    else mempty
+satisfy predicate = item >>= (\c -> if predicate c then return c else mempty)
 
 char :: Char -> Parser Char
 char c = satisfy (==c)
@@ -82,9 +76,9 @@ chainr p op fallback = (p `chainr1` op) <|> (return fallback)
 
 chainl1 :: Parser a -> Parser (a -> a -> a) -> Parser a
 chainr1 :: Parser a -> Parser (a -> a -> a) -> Parser a
-p `chainl1` op = do { a <- p; rest a }
+p `chainl1` op = p >>= rest
   where rest a = ((op <*> pure a <*> p) >>= rest)  <|> return a
-p `chainr1` op = do { a <- p; rest a }
+p `chainr1` op = p >>= rest
   where rest a =  (op <*> pure a <*> (p >>= rest)) <|> return a
 
 space :: Parser String
@@ -135,7 +129,7 @@ apply p = parse (space *> p)
 -- apply a parser only if a different parser would fail, without consuming the string
 -- ex: (notahead (symb "++")) *> symb "+"  matches + only if there is no ++
 notahead :: Parser a -> Parser ()
-notahead p = Parser (\cs -> do
-  if (length (apply p cs) == 0)
+notahead p = Parser (\cs ->
+  if length (apply p cs) == 0
     then return ((), cs)
     else mempty)

@@ -4,32 +4,38 @@ import GHC.Float (int2Double)
 import Control.Applicative ((<|>), empty)
 import Control.Monad (unless)
 import Data.List (filter, elemIndex)
+import Data.Char (isSpace)
 import Data.Function (on)
 import Data.Maybe (fromJust)
+import Text.Read (readMaybe)
+import GHC.Real
 import Number
 
-type UserFunction = ([Number] -> String, String, Int)
+type UserFunction = String
+type Variable = (String, Number)
+-- pass functions and hash-map of variables around
+type CalcState = ([UserFunction], [Variable])
+emptyState :: CalcState
+emptyState = ([], [])
 
-expr :: [UserFunction] -> Parser Number
--- todo: data structure storing operations along with their fixity and precedence
--- so we can dynamically add infixr7, prefix9 etc functions/operators
--- note: same precedence needs foldr1 (<|>), different needs foldr1 (chain(l or r)1)
+expr :: CalcState -> Parser Number
 
-expr fns = infix_functions (postfix_function fns <|> subexpr fns)
+expr st = infix_functions (postfix_function st <|> subexpr st)
 
-subexpr fns = number <|> constant <|> unary_function fns <|> binary_function fns <|> user_function fns <|> brackets fns
+subexpr st = number <|> unary_function st <|> constant <|> binary_function st
+  <|> user_function st <|> user_variable st <|> brackets st
 
 constant = foldr1 (<|>) $ map
   (\(cs, val) -> symb cs *> return val)
   [("pi", pi), ("e", exp 1)]
 
-brackets fns = foldr1 (<|>) $ map
-  (\(l, r) -> symb l *> (expr fns) <* symb r)
+brackets st = foldr1 (<|>) $ map
+  (\(l, r) -> symb l *> (expr st) <* symb r)
   [("(",")"), ("[","]"), ("{","}"),
   ("\\left(","\\right)"), ("\\left[","\\right]"), ("\\left{","\\right}")]
 
-unary_function fns = foldr1 (<|>) $ map
-  (\(cs, f) -> latexSymb cs *> subexpr fns >>= return . f)
+unary_function st = foldr1 (<|>) $ map
+  (\(cs, f) -> latexSymb cs *> subexpr st >>= return . f)
   [("sin", sin), ("cos", cos), ("tan", tan), ("sqrt", sqrt), ("exp", exp),
   ("ln", log), ("log", logBase 10), ("sinh", sinh), ("cosh", cosh), ("tanh", tanh),
   -- expose toR, toZ, toQ so you can get fraction -> decimal, etc
@@ -41,8 +47,8 @@ unary_function fns = foldr1 (<|>) $ map
   ("acosh", acosh), ("arccosh", acosh), ("cosh^-1", acosh), ("cosh^{-1}", acosh),
   ("atanh", atanh), ("arctanh", atanh), ("tanh^-1", atanh), ("tanh^{-1}", atanh)]
 
-binary_function fns = foldr1 (<|>) $ map
-  (\(cs, f) -> latexSymb cs *> (f <$> subexpr fns <*> subexpr fns))
+binary_function st = foldr1 (<|>) $ map
+  (\(cs, f) -> latexSymb cs *> (f <$> subexpr st <*> subexpr st))
   [("frac", (/)), ("max", max), ("min", min), ("log_", logBase),
   ("nCr", choose), ("nPr", perms), ("gcd", numGCD)]
 
@@ -59,50 +65,44 @@ infix_functions ex = ex `chainr1` pow `chainl1` comb `chainl1` mul `chainl1` imp
   -- implicitly multiply any two consecutive expressions without an operation
   implicitmul = notahead add *> return (*)
 
-postfix_function fns = foldr1 (<|>) $ map
-  (\(cs, f) -> subexpr fns <* symb cs >>= return . f)
+postfix_function st = foldr1 (<|>) $ map
+  (\(cs, f) -> subexpr st <* symb cs >>= return . f)
   [("!", numFactorial)]
 
--- source: https://mail.haskell.org/pipermail/haskell-cafe/2008-July/045458.html
-replace :: String -> String -> String -> String
-replace [] old new = []
-replace str old new = loop str
-  where
-    loop [] = []
-    loop str =
-      let (prefix, rest) = splitAt n str
-      in
-        if old == prefix                -- found an occurrence?
-        then new ++ loop rest           -- yes: replace it
-        else head str : loop (tail str) -- no: keep looking
-    n = length old
+-- |This processes a string eg "f x y = 1/x + ln y" and lets you then write
+-- "f {expression} {expression}" anywhere inside an expression
+user_function :: CalcState -> Parser Number
+user_function st@(fns, vars) = foldr (<|>) empty (map user_func fns) where
+  user_func :: UserFunction -> Parser Number
+  user_func template =
+    let eq = fromJust (elemIndex '=' template)
+        arg_names = map (:[]) $ filter (not . isSpace) (take eq template)
+        second = drop (eq + 1) template
+        args = repeatP (subexpr st) (length arg_names - 1) :: Parser [Number]
+        subParse :: [Number] -> Parser Number
+        subParse nums =
+          let vars' = zip (tail arg_names) nums
+              st' = (fns, vars'++vars)
+              x = apply (expr st') second in case x of
+            [] -> mempty
+            otherwise -> return . fst . head $ x
+    in symb (head arg_names) *> args >>= subParse
 
--- note: function application should be repeated so functions can be partially applied and defined in terms of each other
--- this takes a string eg "f x y = 1/x + ln y" and creates a function that returns eg "1/{x} + ln {y}" given [x, y]
--- this means we can define functions by simple string manipulation
-createFunction :: String -> UserFunction
-createFunction template =
-  let eq = fromJust $ elemIndex '=' template
-      first = take eq template -- "f x y "
-      second = drop (eq + 1) template -- " 1/x + ln y"
-      names = filter ((>0) . length) (words first) -- ["f", "x", "y"]
-      replaceTemplate temp (num, name) = replace temp name (show num)
-      fn numbers = foldl replaceTemplate second (zip numbers (tail names))
-  in (fn, head names, length names - 1) -- eg ([x, y]->String, "f")
+user_variable :: CalcState -> Parser Number
+user_variable (_, vars) = foldr (<|>) empty
+  (map (\(cs, n) -> symb cs *> pure n) vars)
 
-user_function :: [UserFunction] -> Parser Number
-user_function fns = foldr (<|>) empty (map user_function fns) where
-  user_function :: UserFunction -> Parser Number
-  -- ([Number] -> String, String, Int)
-  user_function (fn, name, no_args) =
-    let args = repeatP (subexpr fns) no_args :: Parser [Number]
-        subParse = fst . head . apply (expr fns) :: String -> Number
-    in symb name *> args >>= return . subParse . fn
-
-prettyExpr :: (String, [UserFunction]) -> (String, [UserFunction])
-prettyExpr (s, fns)
-  | '=' `elem` s = let fn@(_,e,_) = createFunction s in ("defined "++e, fn:fns)
-  | otherwise = (num s fns, fns)
+prettyExpr :: (String, CalcState) -> (String, CalcState)
+prettyExpr (s, st@(fns, vars))
+  | ';' `elem` s =
+    let n = fromJust (elemIndex ';' s)
+        fst'  = take n s; snd' = drop (n + 1) s
+        (_, st') = prettyExpr (fst', st)
+    in prettyExpr (snd', st')
+  | '=' `elem` s =
+    let sig = take (fromJust (elemIndex '=' s)) s in
+    ("defined "++sig, (s:fns, vars))
+  | otherwise = (num s st, st)
   where
     num str fns = let x = apply (expr fns) str in
       if (length x == 0)
@@ -111,7 +111,7 @@ prettyExpr (s, fns)
           then "Invalid character encountered: " ++ snd (head x)
           else show (fst (head x))
 
-run :: [UserFunction] -> IO ()
+run :: CalcState -> IO ()
 run fns = do
   s <- getLine
   let (out, fns') = prettyExpr (s, fns)
@@ -120,58 +120,25 @@ run fns = do
 
 main :: IO ()
 main = do
-  test
+  -- test
   putStrLn "Calculator"
-  run []
+  run emptyState
 
-test :: IO [()]
-test = mapM printFailed (filter (not . testPasses) tests)
-  where
-    printFailed = \(cs, out) -> putStrLn $ "error: " ++ cs ++ " == " ++ show out
-    testPasses (cs, out) = let res = apply (expr []) cs in
-      if (length res == 0)
-        then False
-        else (fst (res !! 0)) `dblEq` out
-    a `dblEq` b = abs (a - b) < 0.0001
-    tests = [
-      -- basic arithmetic, spaces
-      ("1+2", 3.0),
-      ("1.0 + 2.1", 3.1),
-      ("   0. + 0.1   + 0.2 -  .3", 0.0),
-      -- unary minus
-      ("5 + -4 - (5 - 4)", 0.0),
-      -- brackets
-      ("(3 + 4) / (5 - 4)", 7.0),
-      ("[5] - {4} * [3 - 2]", 1.0),
-      ("5 * (3 - 2)", 5.0),
-      -- constants
-      ("2 /1.0 * (3*pi - 4 + 2*2)+e", 6*pi+exp 1),
-      -- associativity
-      ("3  - 2 * 3", -3.0),
-      ("(2**3)^4", 4096.0),
-      ("3^4^(1/2.00)",9.0),
-      ("2/3*3", 2.0),
-      -- latex
-      ("5\\times\\left(4-2\\right)", 10.0),
-      ("3\\times \\left(\\frac{5}{9}\\right)^2*\\left(\\frac{4}{9}\\right)^1", 100.0/243.0),
-      -- multiplication without symbol
-      ("2pi(3 + 4)", 14.0 * pi),
-      ("5^2\\frac(1) 5", 5.0),
-      ("2 / 3(2 + 4)", 4.0), -- equiv. to 2 / 3 * (2 + 4)
-      -- functions
-      ("sin 0", 0.0),
-      ("5max 7 4", 35.0),
-      ("max max max 1 20 3 4", 20.0),
-      ("\\frac{1}{2}", 0.5),
-      ("ln e", 1.0),
-      ("log 100", 2.0),
-      ("\\log_2 8", 3.0),
-      -- floating point numbers and scientific notation
-      ("10e2", 1000.0),
-      ("9e-2", 0.09),
-      ("3.1415e4", 31415.0),
-      -- permutations and combinations
-      ("5!", 120.0),
-      ("10 choose 4", 210.0),
-      ("10C6", 210.0)
-      ]
+-- test :: IO [()]
+-- test = mapM printFailed (filter testFails tests) where
+--   printFailed = \(cs, out) -> putStrLn $ "error: " ++ cs ++ " /= " ++ show out
+--   testFails (cs, out) = show out /= fst (prettyExpr (cs, emptyState))
+--   tests = [
+--     ("1+2", NumZ 3), ("1.0 + 2.1", NumQ (31:%10)), ("   0. + 0.1   + 0.2 -  .3", NumZ 0), -- basic arithmetic, spaces
+--     ("5 + -4 - (5 - 4)", NumZ 0), -- unary minus
+--     ("(3 + 4) / (5 - 4)", NumZ 7), ("[5] - {4} * [3 - 2]", NumZ 1), ("5 * (3 - 2)", NumZ 5), -- brackets
+--     ("2 /1.0 * (3*pi - 4 + 2*2)+e", NumR$6*pi+exp 1), -- constants
+--     ("3  - 2 * 3", NumZ(-3)), ("(2**3)^4", NumZ 4096), ("2^3^2",NumZ 512), ("2/3*3", NumZ 2), -- associativity
+--     ("3\\times \\left(\\frac{5}{9}\\right)^2*\\left(\\frac{4}{9}\\right)^1", NumQ (100:%243)), -- latex
+--     ("2pi(3 + 4)", NumR$14.0 * pi), ("5^2\\frac(1) 5", NumZ 5), ("2 / 3(2 + 4)", NumZ 4), -- implicit mult
+--     ("sin 0", NumR 0.0), ("5max 7 4", NumZ 35), ("max max max 1 20 3 4", NumZ 20), -- functions
+--     ("\\frac{1}{2}", NumQ (1:%2)), ("ln e", NumR 1.0), ("log 100", NumR 2.0), ("\\log_2 8", NumR 3.0),
+--     ("10e2", NumZ 1000), ("9e-2", NumQ (9:%100)), ("3.1415e4", NumZ 31415), -- floating point, scientific notation
+--     ("5!", NumZ 120), ("10 choose 4", NumZ 210), ("10C6", NumZ 210), -- permutations and combinations
+--     ("fx=xx;gx=f(lnx);g(exp2)", NumR 4.0) -- user functions
+--     ]

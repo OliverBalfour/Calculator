@@ -38,7 +38,7 @@ toDouble :: Number -> Double
 toDouble (NumR x) = x
 toDouble x = toDouble . toR $ x
 
--- |Convert a rational to a integer representation if denominator is zero
+-- |Convert a rational to a integer representation if denominator is one
 maybeInt :: Rational -> Number
 maybeInt (x :% 1) = NumZ x
 maybeInt q = NumQ q
