@@ -3,8 +3,6 @@
 
 This is an interactive calculator written in pure Haskell that supports a large number of operations, LaTeX formatting, and defining custom functions, despite only being in the order of about 500 lines of code.
 
-The parser combinators and parser definition reside in `ParserCombinator.hs`, a number type wrapper which allows the calculator to return fractions, integers and doubles is in `Number.hs`, while all calculator-specific code, tests, and the interactive interface resides in `Calculator.hs`.
-
 ## Features
 
 - Define custom functions (eg `f x y = x^2+lny` then `10 / f 2 e == 2.0`)
@@ -23,6 +21,8 @@ The parser combinators and parser definition reside in `ParserCombinator.hs`, a 
 - Order of operations is sometimes counterintuitive - `ln e^2 == (ln e)^2`. It is intended to resemble Haskell.
 - There are bound to be bugs. Some examples which have cropped up: exp didn't work because constants were parsed before unary functions (so exp -> e * xp -> error), and using implicit multiplication without spaces in functions caused issues (if `f x = 2x` then `f 3` became 23 instead of 2*3).
 - Not all functions support automatic differentiation (every function except `!`, `nCr`, `nPr`, `gcd`)
+
+BUG: defining a constant function not in terms of x gives f' x = f x
 
 ## Examples
 
@@ -51,13 +51,18 @@ defined g
 
 ## Inner workings
 
+- `ParserCombinator.hs`: Parser combinators and `Parser` type definition.
+- `Number.hs`: numeric type wrapper which allows the calculator to return fractions, integers and doubles, and which performs automatic differentiation.
+- `Calculator.hs`: uses parser combinators and `Number` to evaluate expressions.
+- `Main.hs`: REPL interface and some simple tests.
+
 We define a monadic `Parser` type, which contains a function taking a string and returning a tuple containing a parsed token and the unparsed remainder of the string. This is a functor, so we can apply functions to the result of a parser (eg if we parse a sequence of digits we can run `int = fmap read digitsParser`). It is an applicative and monad, so we can write `mul = symb "*" *> return (*)` to get a function embedded in the parser type if the `*` symbol is found. Then we can apply binary functions using applicative syntax like `int >>= (\a -> mul <*> pure a <*> int)` to parse `3 * 4 -> Parser 12`.
 
 This means we can evaluate in-place instead of constructing an abstract syntax tree, as the grammar used is context free. The expression parser then uses a sub-expression parser which handles numbers, constants, function application and bracketed expressions (recursively), and chains the sub-expressions by infix operators with a parser combinator `chainl1` which applies the functions in-place.
 
 ## Installation
 
-Install GHC, clone this repository, then run `ghc Calculator.hs` in the main folder. I have a keybinding set where Meta+C opens the calculator in a terminal: `terminator --geometry=400x300-0+0 -e "bash -c '~/Programming/Haskell/ParserCombinator/Calculator'"`.
+Install GHC, clone this repository, then run `ghc Calculator.hs` in the main folder. The only dependency is Haskeline, a CLI library. I have a keybinding set where Meta+C opens the calculator in a terminal: `terminator --geometry=400x300-0+0 -e "bash -c '~/Programming/Haskell/ParserCombinator/Main'"`.
 
 ## Credits
 
