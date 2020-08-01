@@ -22,8 +22,6 @@ This is an interactive calculator written in pure Haskell that supports a large 
 - There are bound to be bugs. Some examples which have cropped up: exp didn't work because constants were parsed before unary functions (so exp -> e * xp -> error), and using implicit multiplication without spaces in functions caused issues (if `f x = 2x` then `f 3` became 23 instead of 2*3).
 - Not all functions support automatic differentiation (every function except `!`, `nCr`, `nPr`, `gcd`)
 
-BUG: defining a constant function not in terms of x gives f' x = f x
-
 ## Examples
 
 The calculator supports standard infix math notation used in programming, as well as LaTeX style markup in parallel. This works by defining a function `\frac` and allowing `{}` brackets to be used to denote a new expression for function application, so `frac 1 2` and `\frac{1}{2}` are parsed the same way. Many other LaTeX functions are supported.

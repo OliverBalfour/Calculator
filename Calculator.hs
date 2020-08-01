@@ -79,7 +79,11 @@ user_function st@(fns, vars) = foldr (<|>) empty (map user_func fns) where
   user_func template =
     let eq = fromJust (elemIndex '=' template)
         arg_names = map (:[]) $ filter (not . isSpace) (take eq template)
-        second = drop (eq + 1) template
+        -- We add a + 0x to the end of the function to force it to use our
+        -- NumFD automatic differentiation type instead of the others.
+        -- (Otherwise f x = const means f' x = const, but +NumFD coerces
+        -- the constant to NumFD and gives f' x = 0 as desired)
+        second = drop (eq + 1) template ++ " + 0*" ++ (arg_names !! 1)
         args = repeatP (subexpr st) (length arg_names - 1) :: Parser [Number]
         subParse :: [Number] -> Parser Number
         subParse nums =
@@ -97,17 +101,37 @@ user_variable (_, vars) = foldr (<|>) empty
 
 prettyExpr :: (String, CalcState) -> (String, CalcState)
 prettyExpr (s, st@(fns, vars))
+  -- semicolons split multiple expressions in one line
   | ';' `elem` s =
     let n = fromJust (elemIndex ';' s)
         fst'  = take n s; snd' = drop (n + 1) s
         (_, st') = prettyExpr (fst', st)
     in prettyExpr (snd', st')
+  -- equals means a variable or function definition
   | '=' `elem` s =
-    let sig = take (fromJust (elemIndex '=' s)) s in
-    ("defined "++sig, (s:fns, vars))
+    let idx = fromJust (elemIndex '=' s)
+        sig = take idx s
+        sigChars = filter (not . isSpace) sig
+        second = drop (idx + 1) s
+    in case (length sigChars) of
+      0 -> ("error: invalid = sign", st)
+
+      -- define variable
+      1 ->
+        let name = take 1 sigChars
+            nums = apply (expr st) second
+        in case nums of
+          [] -> ("No results", st)
+          ns -> ("defined "++sig, (fns, (name, fst (head ns)):vars))
+
+      -- define function
+      _ -> ("defined "++sig, (s:fns, vars))
+
+  -- normal expression
   | otherwise = (num s st, st)
+
   where
-    num str fns = let x = apply (expr fns) str in
+    num str st = let x = apply (expr st) str in
       if (length x == 0)
         then "No results"
         else if (length (snd (x !! 0)) /= 0)
