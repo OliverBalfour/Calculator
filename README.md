@@ -8,8 +8,9 @@ The parser combinators and parser definition reside in `ParserCombinator.hs`, a 
 ## Features
 
 - Define custom functions (eg `f x y = x^2+lny` then `10 / f 2 e == 2.0`)
+- Automatic differentiation of custom functions (eg `fx=2xlnx`, then `f' (exp 2) == 6.0`)
 - Produces simplified fractions or integers where possible, only returns decimals for transcendental functions
-- Force decimal form via `R` function, rational via `Q`, int via `Z` (eg `R 1 / 2`)
+- Force decimal form via `R` function, rational via `Q`, int via `Z` (eg `R (1 / 2)`)
 - Binary infix operators +, -, *, /, and right associative ** or ^
 - Implicit multiplication - `2(3+4) == 2*(3+4)` and `sin pi cos pi == sin(pi)*cos(pi)`
 - Factorial, permutations (`nPr`), combinations (`nCr` or `n choose r`)
@@ -20,6 +21,7 @@ The parser combinators and parser definition reside in `ParserCombinator.hs`, a 
 
 - Order of operations is sometimes counterintuitive - `ln e^2 == (ln e)^2`. It is intended to resemble Haskell.
 - There are bound to be bugs. Some examples which have cropped up: exp didn't work because constants were parsed before unary functions (so exp -> e * xp -> error), and using implicit multiplication without spaces in functions caused issues (if `f x = 2x` then `f 3` became 23 instead of 2*3).
+- Not all functions support automatic differentiation (every function except `!`, `nCr`, `nPr`, `gcd`)
 
 ## Examples
 
@@ -41,6 +43,8 @@ defined g
 > 3 / Z (g 3)
 3/11
 > f x = xx; g x = f(lnx); g(exp2)
+4.0
+> e^2 * g' (exp 2)
 4.0
 ```
 

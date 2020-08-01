@@ -85,8 +85,9 @@ user_function st@(fns, vars) = foldr (<|>) empty (map user_func fns) where
               st' = (fns, vars'++vars)
               x = apply (expr st') second in case x of
             [] -> mempty
-            otherwise -> return . fst . head $ x
-    in symb (head arg_names) *> args >>= subParse
+            otherwise -> return . toDisplay . fst . head $ x
+    in symb (head arg_names) *> ((symb "'" *> args >>= subParse . (map toFD))
+                                         <|> (args >>= subParse))
 
 user_variable :: CalcState -> Parser Number
 user_variable (_, vars) = foldr (<|>) empty
@@ -140,5 +141,5 @@ main = do
 --     ("\\frac{1}{2}", NumQ (1:%2)), ("ln e", NumR 1.0), ("log 100", NumR 2.0), ("\\log_2 8", NumR 3.0),
 --     ("10e2", NumZ 1000), ("9e-2", NumQ (9:%100)), ("3.1415e4", NumZ 31415), -- floating point, scientific notation
 --     ("5!", NumZ 120), ("10 choose 4", NumZ 210), ("10C6", NumZ 210), -- permutations and combinations
---     ("fx=xx;gx=f(lnx);g(exp2)", NumR 4.0) -- user functions
+--     ("fx=xx;gx=f(lnx);g(exp2)", NumR 4.0), ("fx=xx;gx=f(lnx);e^2g'(e^2)", NumR 4.0) -- user functions
 --     ]

@@ -12,27 +12,41 @@ import Data.Function (on)
 -- instance only degrading integers to rationals after division or
 -- applying a binary function where the other argument is a fractional.
 -- As an added bonus you can use ** for all Numbers
-data Number = NumZ Integer | NumQ (Ratio Integer) | NumR Double
+data Number = NumZ Integer | NumQ (Ratio Integer) | NumR Double | NumFD { x :: Double, x' :: Double }
 
 -- |Convert a Number to integer representation. Uses rounding when converting
 -- from rationals and reals.
 toZ :: Number -> Number
 toZ (NumQ (x :% y)) = NumZ $ if y == 1 then x else round $ ((/) `on` fromIntegral) x y
 toZ (NumR x) = NumZ $ round x
-toZ (NumZ x) = NumZ x
+toZ y@(NumZ x) = y
+toZ numFD = toZ $ toR numFD
 
 -- |Convert a Number to rational representation. May experience rounding error
 -- when converting from reals.
 toQ :: Number -> Number
 toQ (NumZ x) = NumQ $ x :% 1
 toQ (NumR x) = NumQ $ toRational x
-toQ (NumQ x) = NumQ x
+toQ y@(NumQ x) = y
+toQ numFD = toQ $ toR numFD
 
 -- |Convert a Number to real representation, may experience rounding error
 toR :: Number -> Number
 toR (NumZ x) = NumR $ fromRational (x :% 1)
 toR (NumQ x) = NumR $ fromRational x
 toR (NumR x) = NumR x
+-- conversion to real always takes primal value x, not derivative x'
+toR (NumFD x x') = NumR x'
+
+-- |Convert a Number to a Forward Double for automatic differentiation
+toFD :: Number -> Number
+toFD y@(NumFD _ _) = y
+toFD (NumR x) = NumFD x 1
+toFD x = toFD $ toR x
+
+toDisplay :: Number -> Number
+toDisplay (NumFD _ x') = NumR x'
+toDisplay a = a
 
 toDouble :: Number -> Double
 toDouble (NumR x) = x
@@ -47,13 +61,18 @@ instance Show Number where
   show (NumZ x) = show x
   show (NumQ (x:%y)) = show x ++ "/" ++ show y
   show (NumR x) = show x
+  show (NumFD x x') = show x ++ ", deriv: " ++ show x'
+
+dblEq :: Double -> Double -> Bool
+a `dblEq` b = abs (a - b) < 1e-6
 
 instance Eq Number where
   -- (==) :: Number -> Number -> Bool
   -- note that 4:%2 /= 2:%1, 4%2 == 2%1
   (==) (NumQ (a:%b)) (NumQ (c:%d)) = (a%b) == (c%d)
   (==) (NumZ a) (NumZ b) = a == b
-  (==) (NumR a) (NumR b) = abs (a - b) < 1e-6
+  (==) (NumR a) (NumR b) = a `dblEq` b
+  (==) (NumFD a _) b = (NumR a) == b
   (==) z@(NumZ _) q@(NumQ _) = (toQ z) == q
   (==) q@(NumQ _) r@(NumR _) = (toR q) == r
   (==) z@(NumZ _) r@(NumR _) = (toR z) == r
@@ -64,6 +83,7 @@ instance Ord Number where
   (<=) (NumQ a) (NumQ b) = a <= b
   (<=) (NumZ a) (NumZ b) = a <= b
   (<=) (NumR a) (NumR b) = a <= b
+  (<=) (NumFD a _) b = (NumR a) <= b
   (<=) z@(NumZ _) q@(NumQ _) = (toQ z) <= q
   (<=) q@(NumQ _) r@(NumR _) = (toR q) <= r
   (<=) z@(NumZ _) r@(NumR _) = (toR z) <= r
@@ -74,6 +94,8 @@ instance Num Number where
   abs (NumQ (x :% y)) = NumQ $ (x * signum x) :% y
   abs (NumZ  x)       = NumZ $ abs x
   abs (NumR  x)       = NumR $ abs x
+  abs (NumFD x x') = NumFD (f x) (x' * df x)
+    where f = abs; df = signum
 
   -- fromInteger :: Integer -> Number
   fromInteger = NumZ
@@ -83,11 +105,15 @@ instance Num Number where
   signum (NumQ (x :% _)) = NumZ $ signum x -- todo
   signum (NumZ  x)       = NumZ $ signum x
   signum (NumR  x)       = NumZ $ round $ signum x
+  signum (NumFD x x') = NumFD (f x) (x' * df x)
+    where f = signum; df = const 0
 
   -- negate :: Number -> Number
   negate (NumQ (x :% y)) = NumQ $ (negate x) :% y
   negate (NumZ x) = NumZ $ negate x
   negate (NumR x) = NumR $ negate x
+  negate (NumFD x x') = NumFD (f x) (x' * df x)
+    where f = negate; df = const (-1)
 
   -- (*) :: Number -> Number -> Number
   (*) (NumQ a) (NumQ b) = maybeInt $ a * b
@@ -96,6 +122,9 @@ instance Num Number where
   (*) z@(NumZ _) q@(NumQ _) = (toQ z) * q
   (*) q@(NumQ _) r@(NumR _) = (toR q) * r
   (*) z@(NumZ _) r@(NumR _) = (toR z) * r
+  (*) (NumFD a a') (NumFD b b') = NumFD (a*b) (a*b'+b*a')
+  (*) (NumFD a a') (NumR b) = NumFD (a*b) (a'*b)
+  (*) a@(NumFD _ _) b = a * (toR b)
   a * b = b * a
 
   -- (+) :: Number -> Number -> Number
@@ -105,6 +134,9 @@ instance Num Number where
   (+) z@(NumZ _) q@(NumQ _) = (toQ z) + q
   (+) q@(NumQ _) r@(NumR _) = (toR q) + r
   (+) z@(NumZ _) r@(NumR _) = (toR z) + r
+  (+) (NumFD a a') (NumFD b b') = NumFD (a+b) (a'+b')
+  (+) (NumFD a a') (NumR b) = NumFD (a+b) a'
+  (+) a@(NumFD _ _) b = a + (toR b)
   a + b = b + a
 
 instance Fractional Number where
@@ -115,6 +147,7 @@ instance Fractional Number where
   recip (NumQ (x :% y)) = maybeInt $ y % x
   recip (NumZ  x)       = NumQ $ 1 :% x
   recip (NumR  x)       = NumR $ 1.0 / x
+  recip (NumFD x x')    = NumFD (1.0 / x) ((-x') / x**2)
 
   -- (/) :: Number -> Number -> Number
   -- we only overload division for a couple of special cases
@@ -140,55 +173,57 @@ instance Floating Number where
   -- that internally applies said function
 
   -- unary_function :: Number -> Number
+  -- unary_function (NumFD x x') = NumFD (unary_function x, derivative)
   -- unary_function (NumR r) = NumR $ unary_function r
-  -- unary_function x@(NumZ _) = unary_function (toR x)
-  -- unary_function x@(NumQ _) = unary_function (toR x)
+  -- unary_function x = unary_function (toR x)
 
-  -- The following snippet generates the below code:
-  -- import qualified Data.Text as T
-  -- main = putStrLn (T.unpack generated)
-  -- generated = T.unlines $ map (\fn -> T.replace (T.pack "*") fn template) fns where
-  --   fns = (T.split (==',') (T.pack "exp,log,sin,cos,asin,acos,atan,sinh,cosh,asinh,acosh,atanh"))
-  --   template = (T.pack"* (NumR r) = NumR $ * r\n\
-  -- \* x@(NumZ _) = * (toR x)\n\
-  -- \* x@(NumQ _) = * (toR x)")
-
+  exp (NumFD x x') = NumFD (exp x) (x' * exp x)
   exp (NumR r) = NumR $ exp r
-  exp x@(NumZ _) = exp (toR x)
-  exp x@(NumQ _) = exp (toR x)
+  exp x = exp (toR x)
+
+  log (NumFD x x') = NumFD (log x) (x' / x)
   log (NumR r) = NumR $ log r
-  log x@(NumZ _) = log (toR x)
-  log x@(NumQ _) = log (toR x)
+  log x = log (toR x)
+
+  sin (NumFD x x') = NumFD (sin x) (x' * cos x)
   sin (NumR r) = NumR $ sin r
-  sin x@(NumZ _) = sin (toR x)
-  sin x@(NumQ _) = sin (toR x)
+  sin x = sin (toR x)
+
+  cos (NumFD x x') = NumFD (sin x) (x' * (negate . sin) x)
   cos (NumR r) = NumR $ cos r
-  cos x@(NumZ _) = cos (toR x)
-  cos x@(NumQ _) = cos (toR x)
+  cos x = cos (toR x)
+
+  asin (NumFD x x') = NumFD (asin x) (x' / sqrt (1 - x**2))
   asin (NumR r) = NumR $ asin r
-  asin x@(NumZ _) = asin (toR x)
-  asin x@(NumQ _) = asin (toR x)
+  asin x = asin (toR x)
+
+  acos (NumFD x x') = NumFD (acos x) ((-x') / sqrt (1 - x**2))
   acos (NumR r) = NumR $ acos r
-  acos x@(NumZ _) = acos (toR x)
-  acos x@(NumQ _) = acos (toR x)
+  acos x = acos (toR x)
+
+  atan (NumFD x x') = NumFD (atan x) (x' / (1 + x**2))
   atan (NumR r) = NumR $ atan r
-  atan x@(NumZ _) = atan (toR x)
-  atan x@(NumQ _) = atan (toR x)
+  atan x = atan (toR x)
+
+  sinh (NumFD x x') = NumFD (sinh x) (x' * cosh x)
   sinh (NumR r) = NumR $ sinh r
-  sinh x@(NumZ _) = sinh (toR x)
-  sinh x@(NumQ _) = sinh (toR x)
+  sinh x = sinh (toR x)
+
+  cosh (NumFD x x') = NumFD (cosh x) (x' * sinh x)
   cosh (NumR r) = NumR $ cosh r
-  cosh x@(NumZ _) = cosh (toR x)
-  cosh x@(NumQ _) = cosh (toR x)
+  cosh x = cosh (toR x)
+
+  asinh (NumFD x x') = NumFD (asinh x) (x' / sqrt (1 + x**2))
   asinh (NumR r) = NumR $ asinh r
-  asinh x@(NumZ _) = asinh (toR x)
-  asinh x@(NumQ _) = asinh (toR x)
+  asinh x = asinh (toR x)
+
+  acosh (NumFD x x') = NumFD (acosh x) (x' / sqrt (1 - x**2))
   acosh (NumR r) = NumR $ acosh r
-  acosh x@(NumZ _) = acosh (toR x)
-  acosh x@(NumQ _) = acosh (toR x)
+  acosh x = acosh (toR x)
+
+  atanh (NumFD x x') = NumFD (atanh x) (x' / (1 - x**2))
   atanh (NumR r) = NumR $ atanh r
-  atanh x@(NumZ _) = atanh (toR x)
-  atanh x@(NumQ _) = atanh (toR x)
+  atanh x = atanh (toR x)
 
 -- permutations, combinations, factorial
 factorial :: Integer -> Integer
@@ -210,4 +245,3 @@ choose n r = perms n r / numFactorial r
 numGCD :: Number -> Number -> Number
 numGCD (NumZ a) (NumZ b) = NumZ $ gcd a b
 numGCD a b = numGCD (toZ a) (toZ b)
-
