@@ -52,6 +52,28 @@ toDouble :: Number -> Double
 toDouble (NumR x) = x
 toDouble x = toDouble . toR $ x
 
+-- ported from CPython.Fraction.limit_denominator
+-- https://github.com/python/cpython/blob/3.8/Lib/fractions.py#L227
+limit_denominator :: Number -> Number -> Number
+limit_denominator (NumZ lim) (NumQ frac) =
+  NumQ $ limit (0, 1, 1, 0) lim frac
+  where
+    limit (p0, q0, p1, q1) lim frac@(n:%d) =
+      let a = n `quot` d
+          q2 = q0 + a * q1
+      in if q2 > lim
+        then
+          let k = (lim - q0) `quot` q1
+              bound1 = (p0 + k * p1) % (q0 + k * q1)
+              bound2 = p1 % q1
+          in if abs (bound2 - frac) <= abs (bound1 - frac)
+            then bound2 else bound1
+        else
+          limit (p1, q1, p0 + a * p1, q2) lim (d :% (n - a * d))
+
+limit_denominator a@(NumZ _) b = limit_denominator a (toQ b)
+limit_denominator a b = limit_denominator (toZ a) b
+
 -- |Convert a rational to a integer representation if denominator is one
 maybeInt :: Rational -> Number
 maybeInt (x :% 1) = NumZ x

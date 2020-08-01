@@ -11,6 +11,7 @@ The parser combinators and parser definition reside in `ParserCombinator.hs`, a 
 - Automatic differentiation of custom functions (eg `fx=2xlnx`, then `f' (exp 2) == 6.0`)
 - Produces simplified fractions or integers where possible, only returns decimals for transcendental functions
 - Force decimal form via `R` function, rational via `Q`, int via `Z` (eg `R (1 / 2)`)
+- Limit denominator of rational form via `Ql 10 pi == 22/7`
 - Binary infix operators +, -, *, /, and right associative ** or ^
 - Implicit multiplication - `2(3+4) == 2*(3+4)` and `sin pi cos pi == sin(pi)*cos(pi)`
 - Factorial, permutations (`nPr`), combinations (`nCr` or `n choose r`)

@@ -50,7 +50,7 @@ unary_function st = foldr1 (<|>) $ map
 binary_function st = foldr1 (<|>) $ map
   (\(cs, f) -> latexSymb cs *> (f <$> subexpr st <*> subexpr st))
   [("frac", (/)), ("max", max), ("min", min), ("log_", logBase),
-  ("nCr", choose), ("nPr", perms), ("gcd", numGCD)]
+  ("nCr", choose), ("nPr", perms), ("gcd", numGCD), ("Ql", limit_denominator)]
 
 -- |Infix functions are implemented by chaining expressions with parsers for
 -- infix functions which produce Parser (Number -> Number -> Number)
