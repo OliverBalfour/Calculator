@@ -22,7 +22,7 @@ expr :: CalcState -> Parser Number
 
 expr st = infix_functions (postfix_function st <|> subexpr st)
 
-subexpr st = number <|> unary_function st <|> constant <|> binary_function st
+subexpr st = unary_minus $ number <|> unary_function st <|> constant <|> binary_function st
   <|> user_function st <|> user_variable st <|> brackets st
 
 constant = foldr1 (<|>) $ map
@@ -131,7 +131,7 @@ main = do
 --   testFails (cs, out) = show out /= fst (prettyExpr (cs, emptyState))
 --   tests = [
 --     ("1+2", NumZ 3), ("1.0 + 2.1", NumQ (31:%10)), ("   0. + 0.1   + 0.2 -  .3", NumZ 0), -- basic arithmetic, spaces
---     ("5 + -4 - (5 - 4)", NumZ 0), -- unary minus
+--     ("5 + -4 - (5 - 4)", NumZ 0), ("-pi", NumR (-pi)), ("--pi", NumR pi), -- unary minus
 --     ("(3 + 4) / (5 - 4)", NumZ 7), ("[5] - {4} * [3 - 2]", NumZ 1), ("5 * (3 - 2)", NumZ 5), -- brackets
 --     ("2 /1.0 * (3*pi - 4 + 2*2)+e", NumR$6*pi+exp 1), -- constants
 --     ("3  - 2 * 3", NumZ(-3)), ("(2**3)^4", NumZ 4096), ("2^3^2",NumZ 512), ("2/3*3", NumZ 2), -- associativity

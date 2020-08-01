@@ -4,6 +4,7 @@ module ParserCombinator where
 import Control.Monad (ap)
 import Control.Applicative (Alternative, (<|>), empty)
 import Data.Char (isSpace, isDigit, ord)
+import Data.Bool (bool)
 import GHC.Float (int2Double)
 import Number
 
@@ -96,11 +97,12 @@ latexSymb cs = symb cs <|> symb ('\\' : cs)
 digit :: Parser Int
 digit = fmap (\c -> ord c - ord '0') (satisfy isDigit)
 
-positiveInteger :: Parser Number
-positiveInteger = fmap (NumZ . read) (many1 (satisfy isDigit))
-
 integer :: Parser Number
-integer = (char '-' *> fmap negate positiveInteger) <|> positiveInteger
+integer = unary_minus $ fmap (NumZ . read) (many1 (satisfy isDigit))
+
+-- adds unary minus support to an existing parser (supports multiple -'s)
+unary_minus :: Parser Number -> Parser Number
+unary_minus p = fmap (odd . length) (many $ char '-') >>= bool p (fmap negate p)
 
 floatingPoint :: Parser Number
 floatingPoint = (do
