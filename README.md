@@ -21,6 +21,7 @@ This is an interactive calculator written in pure Haskell that supports a large 
 - Order of operations is sometimes counterintuitive - `ln e^2 == (ln e)^2`. It is intended to resemble Haskell.
 - There are bound to be bugs. Some examples which have cropped up: exp didn't work because constants were parsed before unary functions (so exp -> e * xp -> error), and using implicit multiplication without spaces in functions caused issues (if `f x = 2x` then `f 3` became 23 instead of 2*3).
 - Not all functions support automatic differentiation (every function except `!`, `nCr`, `nPr`, `gcd`)
+- Inconsistent handling of division by zero and other errors (eg factorial of non-integer). This could be solved by adding a `NumERR String` value constructor that propagates through calculations into the REPL output.
 
 ## Examples
 

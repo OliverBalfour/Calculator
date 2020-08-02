@@ -55,8 +55,10 @@ toDouble x = toDouble . toR $ x
 -- ported from CPython.Fraction.limit_denominator
 -- https://github.com/python/cpython/blob/3.8/Lib/fractions.py#L227
 limit_denominator :: Number -> Number -> Number
-limit_denominator (NumZ lim) (NumQ frac) =
-  NumQ $ limit (0, 1, 1, 0) lim frac
+limit_denominator (NumZ lim) (NumQ frac@(_:%d)) =
+  if lim <= 0 then NumZ 0 else
+    if d <= lim then NumQ frac else
+      NumQ $ limit (0, 1, 1, 0) lim frac
   where
     limit (p0, q0, p1, q1) lim frac@(n:%d) =
       let a = n `quot` d
@@ -90,7 +92,8 @@ a `dblEq` b = abs (a - b) < 1e-6
 
 instance Eq Number where
   -- (==) :: Number -> Number -> Bool
-  -- note that 4:%2 /= 2:%1, 4%2 == 2%1
+  -- note that :% is a type constructor and % is a function that simplifies
+  -- fractions ie 4:%2 /= 2:%1, but 4%2 == 2%1
   (==) (NumQ (a:%b)) (NumQ (c:%d)) = (a%b) == (c%d)
   (==) (NumZ a) (NumZ b) = a == b
   (==) (NumR a) (NumR b) = a `dblEq` b
@@ -124,7 +127,7 @@ instance Num Number where
 
   -- signum: sign of a number, -1 for negative, +1 for positive, +0 for 0
   -- signum :: Number -> Number
-  signum (NumQ (x :% _)) = NumZ $ signum x -- todo
+  signum (NumQ (x :% _)) = NumZ $ signum x
   signum (NumZ  x)       = NumZ $ signum x
   signum (NumR  x)       = NumZ $ round $ signum x
   signum (NumFD x x') = NumFD (f x) (x' * df x)
@@ -166,8 +169,9 @@ instance Fractional Number where
   fromRational = NumQ
 
   -- recip :: Number -> Number
-  recip (NumQ (x :% y)) = maybeInt $ y % x
-  recip (NumZ  x)       = NumQ $ 1 :% x
+  -- division by zero needs fixing (could use a NumERR String type)
+  recip (NumQ (x :% y)) = if x /= 0 then maybeInt $ y % x else NumZ 0
+  recip (NumZ  x)       = if x /= 0 then NumQ $ 1 :% x else NumZ 0
   recip (NumR  x)       = NumR $ 1.0 / x
   recip (NumFD x x')    = NumFD (1.0 / x) ((-x') / x**2)
 
