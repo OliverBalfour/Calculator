@@ -1,5 +1,7 @@
 
 import Calculator
+import Number
+import GHC.Real
 import Control.Monad.Trans
 import System.Console.Haskeline
 

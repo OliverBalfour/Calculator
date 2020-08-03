@@ -89,7 +89,8 @@ user_function st@(fns, vars) = foldr (<|>) empty (map user_func fns) where
         subParse nums =
           let vars' = zip (tail arg_names) nums
               st' = (fns, vars'++vars)
-              x = apply (expr st') second in case x of
+              x = apply (expr st') second
+          in case x of
             [] -> mempty
             otherwise -> return . toDisplay . fst . head $ x
     in symb (head arg_names) *> ((symb "'" *> args >>= subParse . (map toFD))
@@ -111,21 +112,24 @@ prettyExpr (s, st@(fns, vars))
   | '=' `elem` s =
     let idx = fromJust (elemIndex '=' s)
         sig = take idx s
-        sigChars = filter (not . isSpace) sig
+        sigChars s = filter (not . isSpace) s
         second = drop (idx + 1) s
-    in case (length sigChars) of
+    in case (length $ sigChars sig) of
       0 -> ("error: invalid = sign", st)
 
       -- define variable
       1 ->
-        let name = take 1 sigChars
+        let name = take 1 (sigChars sig)
             nums = apply (expr st) second
+            vars' = filter (\(a,b) -> a /= name) vars
         in case nums of
           [] -> ("No results", st)
-          ns -> ("defined "++sig, (fns, (name, fst (head ns)):vars))
+          ns -> ("defined "++sig, (fns, (name, fst (head ns)):vars'))
 
       -- define function
-      _ -> ("defined "++sig, (s:fns, vars))
+      _ ->
+        let fns' = filter (\s -> take 1 (sigChars s) /= take 1 (sigChars sig)) fns
+        in ("defined "++sig, (s:fns', vars))
 
   -- normal expression
   | otherwise = (num s st, st)
