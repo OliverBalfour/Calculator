@@ -38,5 +38,6 @@ main = do
 --     ("\\frac{1}{2}", NumQ (1:%2)), ("ln e", NumR 1.0), ("log 100", NumR 2.0), ("\\log_2 8", NumR 3.0),
 --     ("10e2", NumZ 1000), ("9e-2", NumQ (9:%100)), ("3.1415e4", NumZ 31415), -- floating point, scientific notation
 --     ("5!", NumZ 120), ("10 choose 4", NumZ 210), ("10C6", NumZ 210), -- permutations and combinations
---     ("fx=xx;gx=f(lnx);g(exp2)", NumR 4.0), ("fx=xx;gx=f(lnx);e^2g'(e^2)", NumR 4.0) -- user functions
+--     ("fx=xx;gx=f(lnx);g(exp2)", NumR 4.0), ("fx=xx;gx=f(lnx);e^2g'(e^2)", NumR 4.0), -- user functions
+--     ("f x y = 3x + 10y; df/dx 4 2", NumR 3.0)
 --     ]

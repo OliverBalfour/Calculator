@@ -7,6 +7,7 @@ This is an interactive calculator written in pure Haskell that supports a large 
 
 - Define custom functions (eg `f x y = x^2+lny` then `10 / f 2 e == 2.0`). Note variable names are one character only.
 - Automatic differentiation of custom functions (eg `fx=2xlnx`, then `f' (exp 2) == 6.0`)
+- Automatic partial differentiation (`f x y = 3xy; df/dx 4 2` prints `6.0`)
 - Produces simplified fractions or integers where possible, only returns decimals for transcendental functions
 - Force decimal form via `R` function, rational via `Q`, int via `Z` (eg `R (1 / 2)`)
 - Limit denominator of rational form via `Ql 10 pi == 22/7`
@@ -23,7 +24,7 @@ This is an interactive calculator written in pure Haskell that supports a large 
 - Not all functions support automatic differentiation (every function except `!`, `nCr`, `nPr`, `gcd`)
 - Inconsistent handling of division by zero and other errors (eg factorial of non-integer). This could be solved by adding a `NumERR String` value constructor that propagates through calculations into the REPL output.
 - Derivatives of functions of user defined functions are broken. This is particularly difficult to implement as you could have `g x = f (ln x) 0 (x^2)` for `f` in `R^3->R`, for instance. The easiest way to fix this is to simply replace `f` with its definition and differentiate `g` as normal.
-- Partial derivatives and integration are unsupported.
+- Integration is unsupported.
 - Algebra solving is unsupported.
 
 ## Examples

@@ -93,8 +93,28 @@ user_function st@(fns, vars) = foldr (<|>) empty (map user_func fns) where
           in case x of
             [] -> mempty
             otherwise -> return . toDisplay . fst . head $ x
-    in symb (head arg_names) *> ((symb "'" *> args >>= subParse . (map toFD))
-                                         <|> (args >>= subParse))
+
+        normalFunc =
+          symb (head arg_names) *> args >>= subParse
+
+        unaryDerivativeFunc =
+          if length arg_names /= 2 then empty else
+            symb (head arg_names ++ "'") *> args >>= subParse . (map toFD)
+
+        partialDerivativeFunc =
+          foldr1 (<|>) (map partial (zip (tail arg_names) [0..]))
+          where
+            partial (arg, i) =
+              let token = "d" ++ head arg_names ++ "/d" ++ arg
+              in symb token *> (args >>= subParse . (mapNth i toFD))
+
+    in partialDerivativeFunc <|> unaryDerivativeFunc <|> normalFunc
+
+  -- apply a map function to only the nth element of a list
+  mapNth :: Int -> (a -> a) -> [a] -> [a]
+  mapNth _ _ [] = []
+  mapNth 0 f (x:xs) = f x : xs
+  mapNth n f (x:xs) = x : mapNth (n - 1) f xs
 
 user_variable :: CalcState -> Parser Number
 user_variable (_, vars) = foldr (<|>) empty
