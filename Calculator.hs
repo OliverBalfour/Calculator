@@ -29,7 +29,7 @@ subexpr st = unary_minus $ number <|> unary_function st <|> constant <|> binary_
 
 constant = foldr1 (<|>) $ map
   (\(cs, val) -> symb cs *> return val)
-  [("pi", pi), ("e", exp 1)]
+  [("pi", pi), ("e", exp 1), ("\pi", pi)]
 
 brackets st = foldr1 (<|>) $ map
   (\(l, r) -> symb l *> (expr st) <* symb r)
