@@ -92,8 +92,8 @@ a `dblEq` b = abs (a - b) < 1e-6
 
 instance Eq Number where
   -- (==) :: Number -> Number -> Bool
-  -- note that :% is a type constructor and % is a function that simplifies
-  -- fractions ie 4:%2 /= 2:%1, but 4%2 == 2%1
+  -- note that :% is a value constructor and % is smart constructor (function)
+  -- that simplifies fractions; eg 4:%2 /= 2:%1, but 4%2 == 2%1
   (==) (NumQ (a:%b)) (NumQ (c:%d)) = (a%b) == (c%d)
   (==) (NumZ a) (NumZ b) = a == b
   (==) (NumR a) (NumR b) = a `dblEq` b

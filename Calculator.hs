@@ -24,12 +24,12 @@ expr :: CalcState -> Parser Number
 
 expr st = infix_functions (postfix_function st <|> subexpr st)
 
-subexpr st = unary_minus $ number <|> unary_function st <|> constant <|> binary_function st
+subexpr st = unaryMinus $ number <|> unary_function st <|> constant <|> binary_function st
   <|> user_function st <|> user_variable st <|> brackets st
 
 constant = foldr1 (<|>) $ map
   (\(cs, val) -> symb cs *> return val)
-  [("pi", pi), ("e", exp 1)]
+  [("pi", pi), ("\\pi", pi), ("e", exp 1)]
 
 brackets st = foldr1 (<|>) $ map
   (\(l, r) -> symb l *> (expr st) <* symb r)

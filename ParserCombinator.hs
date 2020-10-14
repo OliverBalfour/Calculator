@@ -98,11 +98,11 @@ digit :: Parser Int
 digit = fmap (\c -> ord c - ord '0') (satisfy isDigit)
 
 integer :: Parser Number
-integer = unary_minus $ fmap (NumZ . read) (many1 (satisfy isDigit))
+integer = fmap (NumZ . read) (many1 (satisfy isDigit))
 
 -- adds unary minus support to an existing parser (supports multiple -'s)
-unary_minus :: Parser Number -> Parser Number
-unary_minus p = fmap (odd . length) (many $ char '-') >>= bool p (fmap negate p)
+unaryMinus :: Parser Number -> Parser Number
+unaryMinus p = fmap (odd . length) (many $ char '-') >>= bool p (fmap negate p)
 
 floatingPoint :: Parser Number
 floatingPoint = (do
@@ -111,14 +111,14 @@ floatingPoint = (do
   num_zeros <- fmap length (many1 (char '0')) <|> return 0
   second <- integer <|> return 0
   let num_digits = NumZ . toInteger $ num_zeros + length (show second)
-  return (first + second / 10 ** num_digits))
+  return $ toR (first + second / 10 ** num_digits))
   <|> integer
 
 floatingPointExponent :: Parser Number
 floatingPointExponent = (do
   x <- floatingPoint
   char 'e'
-  e <- floatingPoint
+  e <- unaryMinus floatingPoint
   return (x * 10**e)) <|> floatingPoint
 
 number :: Parser Number

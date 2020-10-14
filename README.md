@@ -19,8 +19,8 @@ This is an interactive calculator written in pure Haskell that supports a large 
 
 ## Drawbacks
 
-- Order of operations is sometimes counterintuitive - `ln e^2 == (ln e)^2`. It is intended to resemble Haskell.
-- There are bound to be bugs. Some examples which have cropped up: exp didn't work because constants were parsed before unary functions (so exp -> e * xp -> error), and using implicit multiplication without spaces in functions caused issues (if `f x = 2x` then `f 3` became 23 instead of 2*3).
+- Order of operations is sometimes counterintuitive - `ln e^2 == (ln e)^2` and `-1^2 == 1`. It is intended to resemble Haskell, with improved unary minus behaviour. The priority is unary minus, brackets, function calls, then exponentiation, multiplication/division, addition/subtraction.
+- There are bound to be bugs.
 - Not all functions support automatic differentiation (every function except `!`, `nCr`, `nPr`, `gcd`)
 - Inconsistent handling of division by zero and other errors (eg factorial of non-integer). This could be solved by adding a `NumERR String` value constructor that propagates through calculations into the REPL output.
 - Derivatives of functions of user defined functions are broken. This is particularly difficult to implement as you could have `g x = f (ln x) 0 (x^2)` for `f` in `R^3->R`, for instance. The easiest way to fix this is to simply replace `f` with its definition and differentiate `g` as normal.
