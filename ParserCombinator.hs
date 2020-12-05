@@ -5,8 +5,7 @@ import Control.Monad (ap)
 import Control.Applicative (Alternative, (<|>), empty)
 import Data.Char (isSpace, isDigit, ord)
 import Data.Bool (bool)
-import GHC.Float (int2Double)
-import Number
+import Number (Number(NumZ), toR)
 
 newtype Parser a = Parser { parse :: String -> [(a, String)] }
 
@@ -32,7 +31,7 @@ instance Semigroup (Parser a) where
   p <> q = Parser (\cs -> parse p cs ++ parse q cs)
 
 instance Monoid (Parser a) where
-  mempty = Parser (\_ -> [])
+  mempty = Parser (const [])
   mappend = (<>)
 
 -- Parsers are alternative so p <|> q applies q only if p fails
@@ -41,7 +40,7 @@ instance Alternative Parser where
   empty = mempty
   p <|> q = Parser (\cs ->
     let (p', q') = (parse p cs, parse q cs) in
-    if length p' > 0 then p' else q')
+    if not (null p') then p' else q')
 
 -- match a single character that satisfies a predicate function
 satisfy :: (Char -> Bool) -> Parser Char
@@ -57,14 +56,18 @@ string (c:cs) = (:) <$> char c <*> string cs
 -- repeated applications of a parser
 many :: Parser a -> Parser [a]
 many p = many1 p <|> return []
+
 many1 :: Parser a -> Parser [a]
 many1 p = (:) <$> p <*> many p
-repeatP p 0 = return []
+
+repeatP :: Parser a -> Int -> Parser [a]
+repeatP _ 0 = return []
 repeatP p n = (:) <$> p <*> repeatP p (n - 1)
 
 -- parse a list [a] delimited by separators b
 sepby :: Parser a -> Parser b -> Parser [a]
-p `sepby` sep = (p `sepby1` sep) <|> empty
+p `sepby` sep = p `sepby1` sep
+
 sepby1 :: Parser a -> Parser b -> Parser [a]
 p `sepby1` sep = (:) <$> p <*> many (sep *> p)
 
@@ -72,8 +75,8 @@ p `sepby1` sep = (:) <$> p <*> many (sep *> p)
 -- eg for int addition: chainl (many1 $ char isDigit) (char "+") (return 0)
 chainl :: Parser a -> Parser (a -> a -> a) -> a -> Parser a
 chainr :: Parser a -> Parser (a -> a -> a) -> a -> Parser a
-chainl p op fallback = (p `chainl1` op) <|> (return fallback)
-chainr p op fallback = (p `chainr1` op) <|> (return fallback)
+chainl p op fallback = (p `chainl1` op) <|> return fallback
+chainr p op fallback = (p `chainr1` op) <|> return fallback
 
 chainl1 :: Parser a -> Parser (a -> a -> a) -> Parser a
 chainr1 :: Parser a -> Parser (a -> a -> a) -> Parser a
@@ -102,12 +105,12 @@ integer = fmap (NumZ . read) (many1 (satisfy isDigit))
 
 -- adds unary minus support to an existing parser (supports multiple -'s)
 unaryMinus :: Parser Number -> Parser Number
-unaryMinus p = fmap (odd . length) (many $ char '-') >>= bool p (fmap negate p)
+unaryMinus p = many (char '-') >>= bool p (fmap negate p) . odd . length
 
 floatingPoint :: Parser Number
 floatingPoint = (do
   first <- integer <|> return 0
-  point <- char '.'
+  char '.'
   num_zeros <- fmap length (many1 (char '0')) <|> return 0
   second <- integer <|> return 0
   let num_digits = NumZ . toInteger $ num_zeros + length (show second)
@@ -132,6 +135,6 @@ apply p = parse (space *> p)
 -- ex: (notahead (symb "++")) *> symb "+"  matches + only if there is no ++
 notahead :: Parser a -> Parser ()
 notahead p = Parser (\cs ->
-  if length (apply p cs) == 0
+  if null (apply p cs)
     then return ((), cs)
     else mempty)

@@ -271,3 +271,21 @@ choose n r = perms n r / numFactorial r
 numGCD :: Number -> Number -> Number
 numGCD (NumZ a) (NumZ b) = NumZ $ gcd a b
 numGCD a b = numGCD (toZ a) (toZ b)
+
+instance Real Number where
+  toRational (NumQ x) = x
+  toRational x = toRational (toQ x)
+
+instance Enum Number where
+  fromEnum (NumZ a) = fromIntegral a
+  fromEnum x = fromEnum (toZ x)
+
+  toEnum = NumZ . fromIntegral
+
+instance Integral Number where
+  toInteger (NumZ x) = toInteger x
+  toInteger x = toInteger (toZ x)
+
+  quotRem (NumZ a) (NumZ b) = both NumZ (quotRem a b)
+    where both f (a, b) = (f a, f b)
+  quotRem a b = quotRem (toZ a) (toZ b)

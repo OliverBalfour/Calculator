@@ -41,7 +41,7 @@ unary_function st = foldr1 (<|>) $ map
   [("sin", sin), ("cos", cos), ("tan", tan), ("sqrt", sqrt), ("exp", exp),
   ("ln", log), ("log", logBase 10), ("sinh", sinh), ("cosh", cosh), ("tanh", tanh),
   -- expose toR, toZ, toQ so you can get fraction -> decimal, etc
-  ("R", toR), ("Q", toQ), ("Z", toZ),
+  ("R", toR), ("Q", toQ), ("Z", toZ), ("abs", abs),
   ("asin", asin), ("arcsin", asin), ("sin^-1", asin), ("sin^{-1}", asin),
   ("acos", acos), ("arccos", acos), ("cos^-1", acos), ("cos^{-1}", acos),
   ("atan", atan), ("arctan", atan), ("tan^-1", atan), ("tan^{-1}", atan),
@@ -51,17 +51,18 @@ unary_function st = foldr1 (<|>) $ map
 
 binary_function st = foldr1 (<|>) $ map
   (\(cs, f) -> latexSymb cs *> (f <$> subexpr st <*> subexpr st))
-  [("frac", (/)), ("max", max), ("min", min), ("log_", logBase),
+  [("frac", (/)), ("max", max), ("min", min), ("log_", logBase), ("mod", mod),
   ("nCr", choose), ("nPr", perms), ("gcd", numGCD), ("Ql", limit_denominator)]
 
 -- |Infix functions are implemented by chaining expressions with parsers for
 -- infix functions which produce Parser (Number -> Number -> Number)
 -- allowing chain to use applicative syntax to evaluate in-place, so no syntax
 -- tree is needed.
-infix_functions ex = ex `chainr1` pow `chainl1` comb `chainl1` mul `chainl1` implicitmul `chainl1` add where
+infix_functions ex = ex `chainr1` pow `chainl1` comb `chainl1` mul `chainl1` modulo `chainl1` implicitmul `chainl1` add where
   pow = (symb "**" <|> symb "^") *> return (**)
   comb = ((symb "C" <|> symb "choose") *> return choose)
       <|> (symb "P"                    *> return perms)
+  modulo = symb "%" *> return (mod . toZ)
   mul = ((symb "*" <|> symb "\\times") *> return (*)) <|> (symb "/" *> return (/))
   add =  (symb "+"                     *> return (+)) <|> (symb "-" *> return (-))
   -- implicitly multiply any two consecutive expressions without an operation
