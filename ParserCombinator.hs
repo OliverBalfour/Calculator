@@ -1,4 +1,5 @@
 
+{-# LANGUAGE LambdaCase #-}
 module ParserCombinator where
 
 import Control.Monad (ap)
@@ -10,7 +11,7 @@ import Number (Number(NumZ), toR)
 newtype Parser a = Parser { parse :: String -> [(a, String)] }
 
 item :: Parser Char
-item = Parser (\cs -> case cs of
+item = Parser (\case
   "" -> []
   (c:cs) -> [(c,cs)])
 
@@ -101,7 +102,7 @@ digit :: Parser Int
 digit = fmap (\c -> ord c - ord '0') (satisfy isDigit)
 
 integer :: Parser Number
-integer = fmap (NumZ . read) (many1 (satisfy isDigit))
+integer = unaryMinus $ fmap (NumZ . read) (many1 (satisfy isDigit))
 
 -- adds unary minus support to an existing parser (supports multiple -'s)
 unaryMinus :: Parser Number -> Parser Number
