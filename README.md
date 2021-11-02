@@ -62,7 +62,7 @@ This means we can evaluate in-place instead of constructing an abstract syntax t
 
 ## Installation
 
-Install GHC, clone this repository, then run `ghc Calculator.hs` in the main folder. The only dependency is Haskeline, a CLI library. I have a keybinding set where Meta+C opens the calculator in a terminal: `terminator --geometry=400x300-0+0 --title "Calculator" -e "bash -c '~/Programming/ParserCombinatorCalculator/Main'"`.
+Install GHC, clone this repository, then run `ghc Main.hs` in the main folder. The only dependency is Haskeline, a CLI library. I have a keybinding set where Meta+C opens the calculator in a terminal: `terminator --geometry=400x300-0+0 --title "Calculator" -e "bash -c '~/Programming/ParserCombinatorCalculator/Main'"`.
 
 ## Credits
 

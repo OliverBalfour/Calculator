@@ -6,7 +6,8 @@ import Control.Monad (ap)
 import Control.Applicative (Alternative, (<|>), empty)
 import Data.Char (isSpace, isDigit, ord)
 import Data.Bool (bool)
-import Number (Number(NumZ), toR)
+import Number (Number(NumZ), toR, toDouble)
+import GHC.Float.RealFracMethods ( truncateDoubleInteger )
 
 newtype Parser a = Parser { parse :: String -> [(a, String)] }
 
@@ -114,7 +115,7 @@ floatingPoint = (do
   char '.'
   num_zeros <- fmap length (many1 (char '0')) <|> return 0
   second <- integer <|> return 0
-  let num_digits = NumZ . toInteger $ num_zeros + length (show second)
+  let num_digits = NumZ . toInteger $ num_zeros + fromInteger (truncateDoubleInteger (logBase 10 $ toDouble second) + 1)
   return $ toR (first + second / 10 ** num_digits))
   <|> integer
 

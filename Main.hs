@@ -19,6 +19,7 @@ repl st = do
 main :: IO ()
 main = do
   -- test
+  -- prettyNumberTests
   putStrLn "Calculator"
   runInputT defaultSettings (repl emptyState)
 
@@ -40,4 +41,16 @@ main = do
 --     ("5!", NumZ 120), ("10 choose 4", NumZ 210), ("10C6", NumZ 210), -- permutations and combinations
 --     ("fx=xx;gx=f(lnx);g(exp2)", NumR 4.0), ("fx=xx;gx=f(lnx);e^2g'(e^2)", NumR 4.0), -- user functions
 --     ("f x y = 3x + 10y; df/dx 4 2", NumR 3.0) -- partial derivatives
+--     ]
+
+-- prettyNumberTests :: IO [()]
+-- prettyNumberTests = mapM printFailed (filter testFails tests) where
+--   printFailed = \(num, cs) -> putStrLn $ "error: " ++ cs ++ " /= " ++ show num
+--   testFails (num, cs) = show num /= cs
+--   tests = [
+--     (NumZ 3, "3"), (NumZ 12345, "12 345"), (NumZ (-123), "-123"),
+--     (NumR 0.1, "0.1"), (NumR 0.01, "0.01"), (NumR 0.001, "0.001"),
+--     (NumR 0.01230, "0.0123"), (NumR 0.01230, "0.0123"), (NumR 3124.00123, "3 124.00123"),
+--     (NumR (-0.1), "-0.1"), (NumR (-0.00123), "-0.00123"), (NumR (-1234.00012), "-1 234.00012"),
+--     (NumR 123457891234000.0, "123 457 891 234 000.0"), (NumR 0.0000001, "1.0e-7")
 --     ]

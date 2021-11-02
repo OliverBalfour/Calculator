@@ -21,7 +21,6 @@ emptyState :: CalcState
 emptyState = ([], [])
 
 expr :: CalcState -> Parser Number
-
 expr st = infix_functions (postfix_function st <|> subexpr st)
 
 subexpr st = unaryMinus $ number <|> unary_function st <|> constant <|> binary_function st

@@ -1,9 +1,12 @@
 
 module Number where
 
-import Data.Ratio
-import GHC.Real
-import Data.Function (on)
+import Data.Ratio ( (%) )
+import GHC.Real ( Ratio((:%)) )
+import Data.Function ( on )
+import Data.List ( intercalate )
+import GHC.Float.RealFracMethods ( truncateDoubleInteger )
+import Data.Char ( isSpace )
 
 -- |Number is a wrapper for Haskell number types numbers using ADTs.
 -- It supports integer, rational, and real number types.
@@ -81,11 +84,44 @@ maybeInt :: Rational -> Number
 maybeInt (x :% 1) = NumZ x
 maybeInt q = NumQ q
 
+splitEvery :: Int -> [a] -> [[a]]
+splitEvery _ [] = []
+splitEvery n list =
+  let (hd, tl) = splitAt n list
+  in hd : splitEvery n tl
+
+trim :: String -> String
+trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+
+prettyInt :: String -> String
+prettyInt x =
+  let sign = if head x == '-' then "-" else ""
+      x' = drop (length sign) x
+  in sign ++ (trim $ reverse (intercalate " " (splitEvery 3 (reverse x'))))
+
+prettyDouble :: Double -> String
+prettyDouble x =
+  let e = logBase 10 x
+  in if e > 20 || e < -4 then show x
+  else
+    let x' = truncateDoubleInteger x
+        remainder = abs $ x - fromInteger x'
+        maxDigits = length (show remainder) `min` 6
+        n = fromInteger $ truncateDoubleInteger (-logBase 10 remainder)
+        decimals = replicate n '0' ++ (removeTrailing $ show $ round (remainder * 10^maxDigits))
+        sign = if x < 0 then "-" else ""
+    in sign ++ (dropWhile (=='-') $ prettyInt (show x')) ++ "." ++ decimals
+  where
+    removeTrailing :: String -> String
+    removeTrailing x =
+      let y = reverse $ dropWhile (== '0') (reverse x)
+      in if null y then "0" else y
+
 instance Show Number where
-  show (NumZ x) = show x
-  show (NumQ (x:%y)) = show x ++ "/" ++ show y
-  show (NumR x) = show x
-  show (NumFD x x') = show x ++ ", deriv: " ++ show x'
+  show (NumZ x) = prettyInt (show x)
+  show (NumQ (x:%y)) = prettyInt (show x) ++ " / " ++ prettyInt (show y)
+  show (NumR x) = prettyDouble x
+  show (NumFD x x') = prettyDouble x ++ ", deriv: " ++ prettyDouble x'
 
 dblEq :: Double -> Double -> Bool
 a `dblEq` b = abs (a - b) < 1e-6
