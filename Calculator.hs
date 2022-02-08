@@ -28,13 +28,16 @@ emptyState = ([], [])
 expr :: CalcState -> Parser Number
 expr st = infix_functions (postfix_function st <|> subexpr st)
 
+subexpr :: CalcState -> Parser Number
 subexpr st = unaryMinus $ number <|> unary_function st <|> constant <|> binary_function st
   <|> user_function st <|> user_variable st <|> brackets st
 
+constant :: Parser Number
 constant = foldr1 (<|>) $ map
   (\(cs, val) -> symb cs *> return val)
   [("pi", pi), ("\\pi", pi), ("e", exp 1)]
 
+brackets :: CalcState -> Parser Number
 brackets st = foldr1 (<|>) $ map
   (\(l, r) -> symb l *> expr st <* symb r)
   [("(",")"), ("[","]"), ("{","}"),
@@ -64,6 +67,7 @@ binary_function st = foldr1 (<|>) $ map
 -- infix functions which produce Parser (Number -> Number -> Number)
 -- allowing chain to use applicative syntax to evaluate in-place, so no syntax
 -- tree is needed.
+infix_functions :: Parser Number -> Parser Number
 infix_functions ex = ex `chainr1` pow `chainl1` comb `chainl1` mul `chainl1` modulo `chainl1` implicitmul `chainl1` add where
   pow = (symb "**" <|> symb "^") *> return (**)
   comb = ((symb "C" <|> symb "choose") *> return choose)

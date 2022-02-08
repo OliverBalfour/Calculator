@@ -28,8 +28,8 @@ main = do
 --   printFailed = \(cs, out) -> putStrLn $ "error: " ++ cs ++ " /= " ++ show out
 --   testFails (cs, out) = show out /= fst (prettyExpr (cs, emptyState))
 --   tests = [
---     ("1+2", NumZ 3), ("1.0 + 2.1", NumR 3.1), ("   0. + 0.1   + 0.2 -  .3", NumR 0), -- basic arithmetic, spaces
---     ("5 + -4 - (5 - 4)", NumZ 0), ("-pi", NumR (-pi)), ("--pi", NumR pi), ("-1^2", NumZ 1), ("-5!", NumR (-120)), -- unary minus
+--     ("1+2", NumZ 3), ("1.0 + 2.1", NumR 3.1), ("   0. + 0.1   + 0.2 -  .3", NumR (0.0+0.1+0.2-0.3)), -- basic arithmetic, spaces
+--     ("5 + -4 - (5 - 4)", NumZ 0), ("-pi", NumR (-pi)), ("--pi", NumR pi), ("-1^2", NumZ 1), ("-5!", NumZ (-120)), -- unary minus
 --     ("(3 + 4) / (5 - 4)", NumZ 7), ("[5] - {4} * [3 - 2]", NumZ 1), ("5 * (3 - 2)", NumZ 5), -- brackets
 --     ("2 /1.0 * (3*pi - 4 + 2*2)+e", NumR$6*pi+exp 1), -- constants
 --     ("3  - 2 * 3", NumZ(-3)), ("(2**3)^4", NumZ 4096), ("2^3^2",NumZ 512), ("2/3*3", NumZ 2), -- associativity
@@ -40,7 +40,8 @@ main = do
 --     ("10e2", NumZ 1000), ("9e-2", NumQ (9:%100)), ("3.1415e4", NumR 31415), -- floating point, scientific notation
 --     ("5!", NumZ 120), ("10 choose 4", NumZ 210), ("10C6", NumZ 210), -- permutations and combinations
 --     ("fx=xx;gx=f(lnx);g(exp2)", NumR 4.0), ("fx=xx;gx=f(lnx);e^2g'(e^2)", NumR 4.0), -- user functions
---     ("f x y = 3x + 10y; df/dx 4 2", NumR 3.0) -- partial derivatives
+--     ("f x y = 3x + 10y; df/dx 4 2", NumR 3.0), -- partial derivatives
+--     ("2.0-1.0", NumR 1.0), ("2.0-1/2", NumR 1.5), ("1/2.0-1", NumR (-0.5))
 --     ]
 
 -- prettyNumberTests :: IO [()]

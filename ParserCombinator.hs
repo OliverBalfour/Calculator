@@ -102,8 +102,11 @@ latexSymb cs = symb cs <|> symb ('\\' : cs)
 digit :: Parser Int
 digit = fmap (\c -> ord c - ord '0') (satisfy isDigit)
 
+positiveInteger :: Parser Number
+positiveInteger = fmap (NumZ . read) (many1 (satisfy isDigit))
+
 integer :: Parser Number
-integer = unaryMinus $ fmap (NumZ . read) (many1 (satisfy isDigit))
+integer = unaryMinus positiveInteger
 
 -- adds unary minus support to an existing parser (supports multiple -'s)
 unaryMinus :: Parser Number -> Parser Number
@@ -114,7 +117,7 @@ floatingPoint = (do
   first <- integer <|> return 0
   char '.'
   num_zeros <- fmap length (many1 (char '0')) <|> return 0
-  second <- integer <|> return 0
+  second <- positiveInteger <|> return 0
   let num_digits = NumZ . toInteger $ num_zeros + fromInteger (truncateDoubleInteger (logBase 10 $ toDouble second) + 1)
   return $ toR (first + second / 10 ** num_digits))
   <|> integer
@@ -124,7 +127,8 @@ floatingPointExponent = (do
   x <- floatingPoint
   char 'e'
   e <- unaryMinus floatingPoint
-  return (x * 10**e)) <|> floatingPoint
+  return (x * 10**e)
+  ) <|> floatingPoint
 
 number :: Parser Number
 number = floatingPointExponent <* space

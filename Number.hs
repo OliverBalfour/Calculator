@@ -293,8 +293,9 @@ factorial 0 = 1
 factorial n = n * factorial (n - 1)
 
 -- note: factorial rounds for non-integers instead of using the gamma function
+-- we pretend that (-5)! is -(5!) to avoid complicating the parser
 numFactorial :: Number -> Number
-numFactorial (NumZ n) = if n >= 0 then NumZ (factorial n) else 0
+numFactorial (NumZ n) = if n >= 0 then NumZ (factorial n) else NumZ (-factorial (-n))
 numFactorial a = numFactorial $ toZ a
 
 perms :: Number -> Number -> Number
