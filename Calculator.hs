@@ -1,3 +1,8 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use $>" #-}
+{-# HLINT ignore "Use camelCase" #-}
+{-# HLINT ignore "Use <&>" #-}
+{-# HLINT ignore "Use asum" #-}
 
 module Calculator where
 
@@ -31,10 +36,11 @@ constant = foldr1 (<|>) $ map
   [("pi", pi), ("\\pi", pi), ("e", exp 1)]
 
 brackets st = foldr1 (<|>) $ map
-  (\(l, r) -> symb l *> (expr st) <* symb r)
+  (\(l, r) -> symb l *> expr st <* symb r)
   [("(",")"), ("[","]"), ("{","}"),
   ("\\left(","\\right)"), ("\\left[","\\right]"), ("\\left{","\\right}")]
 
+unary_function :: CalcState -> Parser Number
 unary_function st = foldr1 (<|>) $ map
   (\(cs, f) -> latexSymb cs *> subexpr st >>= return . f)
   [("sin", sin), ("cos", cos), ("tan", tan), ("sqrt", sqrt), ("exp", exp),
@@ -48,6 +54,7 @@ unary_function st = foldr1 (<|>) $ map
   ("acosh", acosh), ("arccosh", acosh), ("cosh^-1", acosh), ("cosh^{-1}", acosh),
   ("atanh", atanh), ("arctanh", atanh), ("tanh^-1", atanh), ("tanh^{-1}", atanh)]
 
+binary_function :: CalcState -> Parser Number
 binary_function st = foldr1 (<|>) $ map
   (\(cs, f) -> latexSymb cs *> (f <$> subexpr st <*> subexpr st))
   [("frac", (/)), ("max", max), ("min", min), ("log_", logBase), ("mod", mod),
@@ -67,6 +74,7 @@ infix_functions ex = ex `chainr1` pow `chainl1` comb `chainl1` mul `chainl1` mod
   -- implicitly multiply any two consecutive expressions without an operation
   implicitmul = notahead add *> return (*)
 
+postfix_function :: CalcState -> Parser Number
 postfix_function st = foldr1 (<|>) $ map
   (\(cs, f) -> subexpr st <* symb cs >>= return . f)
   [("!", numFactorial)]
@@ -74,7 +82,7 @@ postfix_function st = foldr1 (<|>) $ map
 -- |This processes a string eg "f x y = 1/x + ln y" and lets you then write
 -- "f {expression} {expression}" anywhere inside an expression
 user_function :: CalcState -> Parser Number
-user_function st@(fns, vars) = foldr (<|>) empty (map user_func fns) where
+user_function st@(fns, vars) = foldr ((<|>) . user_func) empty fns where
   user_func :: UserFunction -> Parser Number
   user_func template =
     let eq = fromJust (elemIndex '=' template)
@@ -92,21 +100,21 @@ user_function st@(fns, vars) = foldr (<|>) empty (map user_func fns) where
               x = apply (expr st') second
           in case x of
             [] -> mempty
-            otherwise -> return . toDisplay . fst . head $ x
+            _ -> return . toDisplay . fst . head $ x
 
         normalFunc =
           symb (head arg_names) *> args >>= subParse
 
         unaryDerivativeFunc =
           if length arg_names /= 2 then empty else
-            symb (head arg_names ++ "'") *> args >>= subParse . (map toFD)
+            symb (head arg_names ++ "'") *> args >>= subParse . map toFD
 
         partialDerivativeFunc =
-          foldr1 (<|>) (map partial (zip (tail arg_names) [0..]))
+          foldr1 (<|>) (zipWith partial (tail arg_names) [0..])
           where
-            partial (arg, i) =
+            partial arg i =
               let token = "d" ++ head arg_names ++ "/d" ++ arg
-              in symb token *> (args >>= subParse . (mapNth i toFD))
+              in symb token *> (args >>= subParse . mapNth i toFD)
 
     in partialDerivativeFunc <|> unaryDerivativeFunc <|> normalFunc
 
@@ -117,8 +125,7 @@ user_function st@(fns, vars) = foldr (<|>) empty (map user_func fns) where
   mapNth n f (x:xs) = x : mapNth (n - 1) f xs
 
 user_variable :: CalcState -> Parser Number
-user_variable (_, vars) = foldr (<|>) empty
-  (map (\(cs, n) -> symb cs *> pure n) vars)
+user_variable (_, vars) = foldr ((<|>) . (\(cs, n) -> symb cs *> pure n)) empty vars
 
 prettyExpr :: (String, CalcState) -> (String, CalcState)
 prettyExpr (s, st@(fns, vars))
@@ -134,7 +141,7 @@ prettyExpr (s, st@(fns, vars))
         sig = take idx s
         sigChars s = filter (not . isSpace) s
         second = drop (idx + 1) s
-    in case (length $ sigChars sig) of
+    in case length $ sigChars sig of
       0 -> ("error: invalid = sign", st)
 
       -- define variable
@@ -156,8 +163,8 @@ prettyExpr (s, st@(fns, vars))
 
   where
     num str st = let x = apply (expr st) str in
-      if (length x == 0)
+      if null x
         then "No results"
-        else if (length (snd (x !! 0)) /= 0)
+        else if not (null (snd (head x)))
           then "Invalid character encountered: " ++ snd (head x)
           else show (fst (head x))
